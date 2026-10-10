@@ -1,0 +1,911 @@
+{
+  "market": "br",
+  "currency": "BRL",
+  "norm_ml": 1000,
+  "brands": [
+    {
+      "slug": "amstel",
+      "name": "Amstel",
+      "craft": false,
+      "aliases": [
+        "amstel"
+      ]
+    },
+    {
+      "slug": "antarctica",
+      "name": "Antarctica",
+      "craft": false,
+      "aliases": [
+        "antarctica",
+        "antartica"
+      ]
+    },
+    {
+      "slug": "baden-baden",
+      "name": "Baden Baden",
+      "craft": true,
+      "aliases": [
+        "baden baden"
+      ]
+    },
+    {
+      "slug": "bavaria",
+      "name": "Bavaria",
+      "craft": false,
+      "aliases": [
+        "bavaria"
+      ]
+    },
+    {
+      "slug": "becks",
+      "name": "Beck's",
+      "craft": false,
+      "aliases": [
+        "beck s",
+        "becks"
+      ]
+    },
+    {
+      "slug": "bohemia",
+      "name": "Bohemia",
+      "craft": false,
+      "aliases": [
+        "bohemia"
+      ]
+    },
+    {
+      "slug": "brahma",
+      "name": "Brahma",
+      "craft": false,
+      "aliases": [
+        "brahma"
+      ]
+    },
+    {
+      "slug": "budweiser",
+      "name": "Budweiser",
+      "craft": false,
+      "aliases": [
+        "budweiser",
+        "budwiser"
+      ]
+    },
+    {
+      "slug": "colorado",
+      "name": "Colorado",
+      "craft": true,
+      "aliases": [
+        "colorado"
+      ]
+    },
+    {
+      "slug": "corona",
+      "name": "Corona",
+      "craft": false,
+      "aliases": [
+        "corona"
+      ]
+    },
+    {
+      "slug": "croma",
+      "name": "Croma",
+      "craft": true,
+      "aliases": [
+        "croma"
+      ]
+    },
+    {
+      "slug": "crystal",
+      "name": "Crystal",
+      "craft": false,
+      "aliases": [
+        "crystal"
+      ]
+    },
+    {
+      "slug": "devassa",
+      "name": "Devassa",
+      "craft": false,
+      "aliases": [
+        "devassa"
+      ]
+    },
+    {
+      "slug": "dogma",
+      "name": "Dogma",
+      "craft": true,
+      "aliases": [
+        "dogma"
+      ]
+    },
+    {
+      "slug": "doktor-brau",
+      "name": "Doktor Brau",
+      "craft": true,
+      "aliases": [
+        "doktor brau",
+        "doktorbrau",
+        "dr brau"
+      ]
+    },
+    {
+      "slug": "eisenbahn",
+      "name": "Eisenbahn",
+      "craft": true,
+      "aliases": [
+        "eisenbahn"
+      ]
+    },
+    {
+      "slug": "estrella-galicia",
+      "name": "Estrella Galicia",
+      "craft": false,
+      "aliases": [
+        "estrella",
+        "estrella galicia"
+      ]
+    },
+    {
+      "slug": "glacial",
+      "name": "Glacial",
+      "craft": false,
+      "aliases": [
+        "glacial"
+      ]
+    },
+    {
+      "slug": "goose-island",
+      "name": "Goose Island",
+      "craft": true,
+      "aliases": [
+        "goose island"
+      ]
+    },
+    {
+      "slug": "guinness",
+      "name": "Guinness",
+      "craft": false,
+      "aliases": [
+        "guinness"
+      ]
+    },
+    {
+      "slug": "heineken",
+      "name": "Heineken",
+      "craft": false,
+      "aliases": [
+        "heinecken",
+        "heineke",
+        "heineken",
+        "heiniken"
+      ]
+    },
+    {
+      "slug": "hop-mundi",
+      "name": "Hop Mundi",
+      "craft": true,
+      "aliases": [
+        "hop mundi",
+        "hopmundi"
+      ]
+    },
+    {
+      "slug": "imperio",
+      "name": "Império",
+      "craft": false,
+      "aliases": [
+        "imperio"
+      ]
+    },
+    {
+      "slug": "itaipava",
+      "name": "Itaipava",
+      "craft": false,
+      "aliases": [
+        "itaipava"
+      ]
+    },
+    {
+      "slug": "kaiser",
+      "name": "Kaiser",
+      "craft": false,
+      "aliases": [
+        "kaiser"
+      ]
+    },
+    {
+      "slug": "michelob-ultra",
+      "name": "Michelob Ultra",
+      "craft": false,
+      "aliases": [
+        "michelob",
+        "michelob ultra"
+      ]
+    },
+    {
+      "slug": "moondri",
+      "name": "Moondri",
+      "craft": true,
+      "aliases": [
+        "moondri"
+      ]
+    },
+    {
+      "slug": "original",
+      "name": "Original",
+      "craft": false,
+      "aliases": [
+        "antarctica original",
+        "original"
+      ]
+    },
+    {
+      "slug": "patagonia",
+      "name": "Patagonia",
+      "craft": true,
+      "aliases": [
+        "patagonia"
+      ]
+    },
+    {
+      "slug": "petra",
+      "name": "Petra",
+      "craft": false,
+      "aliases": [
+        "petra"
+      ]
+    },
+    {
+      "slug": "proa",
+      "name": "Proa",
+      "craft": true,
+      "aliases": [
+        "proa"
+      ]
+    },
+    {
+      "slug": "proibida",
+      "name": "Proibida",
+      "craft": false,
+      "aliases": [
+        "proibida"
+      ]
+    },
+    {
+      "slug": "schin",
+      "name": "Schin",
+      "craft": false,
+      "aliases": [
+        "nova schin",
+        "schin"
+      ]
+    },
+    {
+      "slug": "skol",
+      "name": "Skol",
+      "craft": false,
+      "aliases": [
+        "skol"
+      ]
+    },
+    {
+      "slug": "sol",
+      "name": "Sol",
+      "craft": false,
+      "aliases": [
+        "cerv sol",
+        "cerveja sol",
+        "sol premium"
+      ]
+    },
+    {
+      "slug": "spaten",
+      "name": "Spaten",
+      "craft": false,
+      "aliases": [
+        "spaten"
+      ]
+    },
+    {
+      "slug": "stella-artois",
+      "name": "Stella Artois",
+      "craft": false,
+      "aliases": [
+        "stella",
+        "stella artois"
+      ]
+    },
+    {
+      "slug": "therezopolis",
+      "name": "Therezópolis",
+      "craft": true,
+      "aliases": [
+        "therezopolis"
+      ]
+    }
+  ],
+  "beers": [
+    {
+      "slug": "amstel-lager",
+      "name": "Amstel Lager",
+      "brand": "amstel",
+      "style": "lager",
+      "abv": null,
+      "non_alcoholic": false,
+      "aliases": [
+        "amstel lager"
+      ]
+    },
+    {
+      "slug": "antarctica-original",
+      "name": "Original",
+      "brand": "original",
+      "style": "lager",
+      "abv": null,
+      "non_alcoholic": false,
+      "aliases": [
+        "cerveja original"
+      ]
+    },
+    {
+      "slug": "antarctica-pilsen",
+      "name": "Antarctica Pilsen",
+      "brand": "antarctica",
+      "style": "lager",
+      "abv": null,
+      "non_alcoholic": false,
+      "aliases": [
+        "antarctica pilsen",
+        "antartica pilsen"
+      ]
+    },
+    {
+      "slug": "bavaria-premium",
+      "name": "Bavaria Premium",
+      "brand": "bavaria",
+      "style": "lager",
+      "abv": null,
+      "non_alcoholic": false,
+      "aliases": [
+        "bavaria premium"
+      ]
+    },
+    {
+      "slug": "bohemia-pilsen",
+      "name": "Bohemia",
+      "brand": "bohemia",
+      "style": "lager",
+      "abv": null,
+      "non_alcoholic": false,
+      "aliases": [
+        "bohemia pilsen"
+      ]
+    },
+    {
+      "slug": "brahma-chopp",
+      "name": "Brahma Chopp",
+      "brand": "brahma",
+      "style": "lager",
+      "abv": null,
+      "non_alcoholic": false,
+      "aliases": [
+        "brahma chopp",
+        "brahma pilsen"
+      ]
+    },
+    {
+      "slug": "brahma-duplo-malte",
+      "name": "Brahma Duplo Malte",
+      "brand": "brahma",
+      "style": "lager",
+      "abv": null,
+      "non_alcoholic": false,
+      "aliases": [
+        "brahma duplo malte",
+        "duplo malte"
+      ]
+    },
+    {
+      "slug": "brahma-zero",
+      "name": "Brahma Zero",
+      "brand": "brahma",
+      "style": "lager",
+      "abv": 0,
+      "non_alcoholic": true,
+      "aliases": [
+        "brahma 0 0",
+        "brahma zero"
+      ]
+    },
+    {
+      "slug": "budweiser-lager",
+      "name": "Budweiser",
+      "brand": "budweiser",
+      "style": "lager",
+      "abv": null,
+      "non_alcoholic": false,
+      "aliases": [
+        "bud lager",
+        "budweiser lager"
+      ]
+    },
+    {
+      "slug": "budweiser-zero",
+      "name": "Budweiser Zero",
+      "brand": "budweiser",
+      "style": "lager",
+      "abv": 0,
+      "non_alcoholic": true,
+      "aliases": [
+        "bud zero",
+        "budweiser zero"
+      ]
+    },
+    {
+      "slug": "colorado-appia",
+      "name": "Colorado Appia",
+      "brand": "colorado",
+      "style": null,
+      "abv": null,
+      "non_alcoholic": false,
+      "aliases": [
+        "colorado appia"
+      ]
+    },
+    {
+      "slug": "corona-extra",
+      "name": "Corona Extra",
+      "brand": "corona",
+      "style": "lager",
+      "abv": null,
+      "non_alcoholic": false,
+      "aliases": [
+        "corona extra"
+      ]
+    },
+    {
+      "slug": "crystal-pilsen",
+      "name": "Crystal",
+      "brand": "crystal",
+      "style": "lager",
+      "abv": null,
+      "non_alcoholic": false,
+      "aliases": [
+        "crystal pilsen"
+      ]
+    },
+    {
+      "slug": "devassa-tropical",
+      "name": "Devassa Tropical Lager",
+      "brand": "devassa",
+      "style": "lager",
+      "abv": null,
+      "non_alcoholic": false,
+      "aliases": [
+        "devassa tropical",
+        "devassa tropical lager"
+      ]
+    },
+    {
+      "slug": "eisenbahn-pilsen",
+      "name": "Eisenbahn Pilsen",
+      "brand": "eisenbahn",
+      "style": "lager",
+      "abv": null,
+      "non_alcoholic": false,
+      "aliases": [
+        "eisenbahn pilsen"
+      ]
+    },
+    {
+      "slug": "estrella-galicia-especial",
+      "name": "Estrella Galicia Especial",
+      "brand": "estrella-galicia",
+      "style": "lager",
+      "abv": null,
+      "non_alcoholic": false,
+      "aliases": [
+        "estrella galicia especial"
+      ]
+    },
+    {
+      "slug": "goose-island-midway",
+      "name": "Goose Island Midway IPA",
+      "brand": "goose-island",
+      "style": "ipa",
+      "abv": null,
+      "non_alcoholic": false,
+      "aliases": [
+        "goose island midway",
+        "midway ipa"
+      ]
+    },
+    {
+      "slug": "guinness-draught",
+      "name": "Guinness Draught",
+      "brand": "guinness",
+      "style": "stout",
+      "abv": null,
+      "non_alcoholic": false,
+      "aliases": [
+        "guinness draught"
+      ]
+    },
+    {
+      "slug": "heineken-lager",
+      "name": "Heineken",
+      "brand": "heineken",
+      "style": "lager",
+      "abv": null,
+      "non_alcoholic": false,
+      "aliases": [
+        "heineken lager",
+        "heineken puro malte"
+      ]
+    },
+    {
+      "slug": "heineken-zero",
+      "name": "Heineken 0.0",
+      "brand": "heineken",
+      "style": "lager",
+      "abv": 0,
+      "non_alcoholic": true,
+      "aliases": [
+        "heineken 0 0",
+        "heineken zero"
+      ]
+    },
+    {
+      "slug": "imperio-lager",
+      "name": "Império Lager",
+      "brand": "imperio",
+      "style": "lager",
+      "abv": null,
+      "non_alcoholic": false,
+      "aliases": [
+        "imperio lager"
+      ]
+    },
+    {
+      "slug": "itaipava-pilsen",
+      "name": "Itaipava",
+      "brand": "itaipava",
+      "style": "lager",
+      "abv": null,
+      "non_alcoholic": false,
+      "aliases": [
+        "itaipava pilsen"
+      ]
+    },
+    {
+      "slug": "itaipava-puro-malte",
+      "name": "Itaipava 100% Malte",
+      "brand": "itaipava",
+      "style": "lager",
+      "abv": null,
+      "non_alcoholic": false,
+      "aliases": [
+        "itaipava 100 malte",
+        "itaipava puro malte"
+      ]
+    },
+    {
+      "slug": "kaiser-pilsen",
+      "name": "Kaiser",
+      "brand": "kaiser",
+      "style": "lager",
+      "abv": null,
+      "non_alcoholic": false,
+      "aliases": [
+        "kaiser pilsen"
+      ]
+    },
+    {
+      "slug": "nova-schin-pilsen",
+      "name": "Nova Schin",
+      "brand": "schin",
+      "style": "lager",
+      "abv": null,
+      "non_alcoholic": false,
+      "aliases": [
+        "nova schin pilsen"
+      ]
+    },
+    {
+      "slug": "patagonia-amber-lager",
+      "name": "Patagonia Amber Lager",
+      "brand": "patagonia",
+      "style": "lager",
+      "abv": null,
+      "non_alcoholic": false,
+      "aliases": [
+        "patagonia amber",
+        "patagonia amber lager"
+      ]
+    },
+    {
+      "slug": "petra-puro-malte",
+      "name": "Petra Puro Malte",
+      "brand": "petra",
+      "style": "lager",
+      "abv": null,
+      "non_alcoholic": false,
+      "aliases": [
+        "petra puro malte"
+      ]
+    },
+    {
+      "slug": "skol-pilsen",
+      "name": "Skol Pilsen",
+      "brand": "skol",
+      "style": "lager",
+      "abv": null,
+      "non_alcoholic": false,
+      "aliases": [
+        "skol pilsen",
+        "skol pilsner"
+      ]
+    },
+    {
+      "slug": "sol-premium",
+      "name": "Sol Premium",
+      "brand": "sol",
+      "style": "lager",
+      "abv": null,
+      "non_alcoholic": false,
+      "aliases": [
+        "sol premium lager"
+      ]
+    },
+    {
+      "slug": "spaten-munich",
+      "name": "Spaten",
+      "brand": "spaten",
+      "style": "lager",
+      "abv": null,
+      "non_alcoholic": false,
+      "aliases": [
+        "spaten munchen",
+        "spaten munich"
+      ]
+    },
+    {
+      "slug": "stella-artois-lager",
+      "name": "Stella Artois",
+      "brand": "stella-artois",
+      "style": "lager",
+      "abv": null,
+      "non_alcoholic": false,
+      "aliases": [
+        "stella artois lager"
+      ]
+    }
+  ],
+  "formats": [
+    {
+      "code": "lata_269",
+      "type": "lata",
+      "volume_ml": 269,
+      "label_pt": "Lata 269 ml",
+      "label_en": "Can 269 ml",
+      "aliases": []
+    },
+    {
+      "code": "lata_350",
+      "type": "lata",
+      "volume_ml": 350,
+      "label_pt": "Lata 350 ml",
+      "label_en": "Can 350 ml",
+      "aliases": []
+    },
+    {
+      "code": "lata_473",
+      "type": "lata",
+      "volume_ml": 473,
+      "label_pt": "Latão 473 ml",
+      "label_en": "Tall can 473 ml",
+      "aliases": []
+    },
+    {
+      "code": "long_neck_275",
+      "type": "long_neck",
+      "volume_ml": 275,
+      "label_pt": "Long neck 275 ml",
+      "label_en": "Bottle 275 ml",
+      "aliases": []
+    },
+    {
+      "code": "long_neck_330",
+      "type": "long_neck",
+      "volume_ml": 330,
+      "label_pt": "Long neck 330 ml",
+      "label_en": "Bottle 330 ml",
+      "aliases": []
+    },
+    {
+      "code": "long_neck_355",
+      "type": "long_neck",
+      "volume_ml": 355,
+      "label_pt": "Long neck 355 ml",
+      "label_en": "Bottle 355 ml",
+      "aliases": []
+    },
+    {
+      "code": "garrafa_300",
+      "type": "garrafa",
+      "volume_ml": 300,
+      "label_pt": "Garrafa 300 ml (litrinho)",
+      "label_en": "Bottle 300 ml",
+      "aliases": []
+    },
+    {
+      "code": "garrafa_600",
+      "type": "garrafa",
+      "volume_ml": 600,
+      "label_pt": "Garrafa 600 ml",
+      "label_en": "Bottle 600 ml",
+      "aliases": []
+    },
+    {
+      "code": "litrao_1000",
+      "type": "litrao",
+      "volume_ml": 1000,
+      "label_pt": "Litrão 1 L",
+      "label_en": "Litre bottle 1 L",
+      "aliases": []
+    },
+    {
+      "code": "chopp_300",
+      "type": "chopp",
+      "volume_ml": 300,
+      "label_pt": "Chopp 300 ml",
+      "label_en": "Draught 300 ml",
+      "aliases": []
+    },
+    {
+      "code": "chopp_330",
+      "type": "chopp",
+      "volume_ml": 330,
+      "label_pt": "Chopp 330 ml",
+      "label_en": "Draught 330 ml",
+      "aliases": []
+    },
+    {
+      "code": "chopp_400",
+      "type": "chopp",
+      "volume_ml": 400,
+      "label_pt": "Chopp 400 ml",
+      "label_en": "Draught 400 ml",
+      "aliases": []
+    },
+    {
+      "code": "chopp_473",
+      "type": "chopp",
+      "volume_ml": 473,
+      "label_pt": "Chopp 473 ml",
+      "label_en": "Draught 473 ml",
+      "aliases": []
+    },
+    {
+      "code": "chopp_500",
+      "type": "chopp",
+      "volume_ml": 500,
+      "label_pt": "Chopp 500 ml",
+      "label_en": "Draught 500 ml",
+      "aliases": []
+    },
+    {
+      "code": "torre_2500",
+      "type": "torre",
+      "volume_ml": 2500,
+      "label_pt": "Torre 2,5 L",
+      "label_en": "Beer tower 2.5 L",
+      "aliases": []
+    },
+    {
+      "code": "torre_3000",
+      "type": "torre",
+      "volume_ml": 3000,
+      "label_pt": "Torre 3 L",
+      "label_en": "Beer tower 3 L",
+      "aliases": []
+    },
+    {
+      "code": "pint_568",
+      "type": "pint",
+      "volume_ml": 568,
+      "label_pt": "Pint 568 ml",
+      "label_en": "Pint",
+      "aliases": []
+    },
+    {
+      "code": "half_pint_284",
+      "type": "half_pint",
+      "volume_ml": 284,
+      "label_pt": "Meio pint 284 ml",
+      "label_en": "Half pint",
+      "aliases": []
+    }
+  ],
+  "bounds": {
+    "lata": {
+      "hard_min": 600,
+      "auto_min": 1100,
+      "auto_max": 4000,
+      "hard_max": 9000
+    },
+    "long_neck": {
+      "hard_min": 800,
+      "auto_min": 1700,
+      "auto_max": 6000,
+      "hard_max": 13000
+    },
+    "garrafa": {
+      "hard_min": 600,
+      "auto_min": 1100,
+      "auto_max": 4000,
+      "hard_max": 9000
+    },
+    "litrao": {
+      "hard_min": 500,
+      "auto_min": 900,
+      "auto_max": 3000,
+      "hard_max": 6000
+    },
+    "chopp": {
+      "hard_min": 800,
+      "auto_min": 1500,
+      "auto_max": 8000,
+      "hard_max": 18000
+    },
+    "torre": {
+      "hard_min": 600,
+      "auto_min": 1200,
+      "auto_max": 5500,
+      "hard_max": 12000
+    },
+    "pint": {
+      "hard_min": 800,
+      "auto_min": 1500,
+      "auto_max": 8000,
+      "hard_max": 18000
+    },
+    "half_pint": {
+      "hard_min": 800,
+      "auto_min": 1500,
+      "auto_max": 8000,
+      "hard_max": 18000
+    },
+    "other": {
+      "hard_min": 500,
+      "auto_min": 900,
+      "auto_max": 8000,
+      "hard_max": 18000
+    }
+  },
+  "default_volume_ml": {
+    "lata": 350,
+    "long_neck": 330,
+    "garrafa": 600,
+    "litrao": 1000,
+    "chopp": 300,
+    "torre": 2500,
+    "pint": 568,
+    "half_pint": 284
+  },
+  "type_by_volume_ml": {
+    "269": "lata",
+    "275": "long_neck",
+    "284": "half_pint",
+    "300": "garrafa",
+    "330": "long_neck",
+    "350": "lata",
+    "355": "long_neck",
+    "400": "chopp",
+    "473": "lata",
+    "500": "chopp",
+    "568": "pint",
+    "600": "garrafa",
+    "1000": "litrao"
+  }
+}

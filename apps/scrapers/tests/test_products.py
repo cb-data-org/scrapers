@@ -1,0 +1,124 @@
+import pytest
+
+from cb_scrapers.core.catalog import committed_catalog
+from cb_scrapers.core.products import NotAServing, ServingReader, plain, read_serving, words
+
+READER = ServingReader(committed_catalog())
+
+
+@pytest.mark.parametrize(
+    ("description", "brand", "beer", "code", "volume", "units", "packaging"),
+    [
+        ("CHOPP BRAHMA 300ML", "brahma", None, "chopp_300", 300, 1, "single"),
+        ("CHOPP BRAHMA 300", "brahma", None, "chopp_300", 300, 1, "single"),
+        ("CHOPP HEINEKEN 0,5L", "heineken", None, "chopp_500", 500, 1, "single"),
+        # Brahma Chopp is a beer; "600" makes it a bottle, not a draught.
+        ("BRAHMA CHOPP 600ML", "brahma", "brahma-chopp", "garrafa_600", 600, 1, "single"),
+        ("CERVEJA ORIGINAL 600ML", "original", "antarctica-original", "garrafa_600", 600, 1, "single"),
+        ("CERV ORIG 600", "original", "antarctica-original", "garrafa_600", 600, 1, "single"),
+        ("ORIGINAL 600", "original", None, "garrafa_600", 600, 1, "single"),
+        ("SKOL 600 ML", "skol", None, "garrafa_600", 600, 1, "single"),
+        ("SKOL LT 350ML", "skol", None, "lata_350", 350, 1, "single"),
+        ("SPATEN 350", "spaten", None, "lata_350", 350, 1, "single"),
+        ("AMSTEL LATA 269ML", "amstel", None, "lata_269", 269, 1, "single"),
+        ("LATAO SKOL 473ML", "skol", None, "lata_473", 473, 1, "single"),
+        ("SKOL LATAO", "skol", None, "lata_473", 473, 1, "single"),
+        ("CERV HEINEK LN 330", "heineken", None, "long_neck_330", 330, 1, "single"),
+        ("HEINEKEN 330", "heineken", None, "long_neck_330", 330, 1, "single"),
+        ("STELLA ARTOIS 275ML", "stella-artois", None, "long_neck_275", 275, 1, "single"),
+        ("CORONA EXTRA LN 330ML", "corona", "corona-extra", "long_neck_330", 330, 1, "single"),
+        ("CERVEJA SPATEN LN 355ML", "spaten", None, "long_neck_355", 355, 1, "single"),
+        ("BRAHMA DUPLO MALTE LATA 350ML", "brahma", "brahma-duplo-malte", "lata_350", 350, 1, "single"),
+        ("BRAHMA 1L", "brahma", None, "litrao_1000", 1000, 1, "single"),
+        # The returnable 300 ml bottle (litrinho), not a 300 ml chopp (#313).
+        ("CERV BRAHMA GF 300ML", "brahma", None, "garrafa_300", 300, 1, "single"),
+        (
+            "BRAHMA CHOPP (300ML) (APENAS O LIQUIDO)",
+            "brahma",
+            "brahma-chopp",
+            "garrafa_300",
+            300,
+            1,
+            "single",
+        ),
+        ("SKOL PILSEN 300ML", "skol", "skol-pilsen", "garrafa_300", 300, 1, "single"),
+        ("CERV BRAHMA LITRINHO", "brahma", None, "garrafa_300", 300, 1, "single"),
+        # Craft chopps (#313).
+        ("CHOPP DOGMA PILSEN 330ML", "dogma", None, "chopp_330", 330, 1, "single"),
+        ("CHOPP CROMA RESIDENT IPA 473ML", "croma", None, "chopp_473", 473, 1, "single"),
+        ("CHOPP IPA PROA 300ML", "proa", None, "chopp_300", 300, 1, "single"),
+        ("CHOPP DOKTOR BRAU PSICOTIPA 500ML", "doktor-brau", None, "chopp_500", 500, 1, "single"),
+        ("CHOPP MOONDRI YEAST MAGIC 2 330ML", "moondri", None, "chopp_330", 330, 1, "single"),
+        ("BRAHMA GARRAFA 1L", "brahma", None, "litrao_1000", 1000, 1, "single"),
+        ("TORRE CHOPP BRAHMA 2,5L", "brahma", None, "torre_2500", 2500, 1, "torre"),
+        # The brand's only long neck size.
+        ("HEINEKEN LONG NECK", "heineken", None, "long_neck_330", 330, 1, "single"),
+        ("BALDE C/5 HEINEKEN LN", "heineken", None, "long_neck_330", 330, 5, "balde"),
+        ("SPATEN LONGNECK", "spaten", None, "long_neck_355", 355, 1, "single"),
+        # No size written: the usual one is assumed and volume stays None, so the deal waits for a person.
+        ("STELLA ARTOIS LONG NECK", "stella-artois", None, "long_neck_330", None, 1, "single"),
+        ("CHOPP HEINEKEN", "heineken", None, "chopp_300", None, 1, "single"),
+        ("BALDE C/5 STELLA ARTOIS LN", "stella-artois", None, "long_neck_330", None, 5, "balde"),
+        ("BUDWEISER LONG NECK", "budweiser", None, "long_neck_330", 330, 1, "single"),
+        ("BALDE HEINEKEN LN 330ML 6UN", "heineken", None, "long_neck_330", 330, 6, "balde"),
+    ],
+)
+def test_reads_servings(
+    description: str,
+    brand: str,
+    beer: str | None,
+    code: str,
+    volume: int | None,
+    units: int,
+    packaging: str,
+) -> None:
+    serving = READER.read(description)
+    assert (serving.brand.slug, serving.beer.slug if serving.beer else None) == (brand, beer)
+    assert (serving.format_code, serving.volume_ml, serving.units, serving.packaging) == (
+        code,
+        volume,
+        units,
+        packaging,
+    )
+
+
+@pytest.mark.parametrize(
+    ("description", "reason"),
+    [
+        ("CERV LN HEINEKEN Z ALC 330ML", "zero alcohol"),
+        ("HEINEKEN 0,0 LN", "zero alcohol"),
+        ("BUD ZERO 330ML", "zero alcohol"),
+        ("HEINEKEN LN 330ML HAPPY HOUR", "promotion"),
+        ("CX CERV SKOL LT 350ML C/12", "pack"),
+        ("CERV HEINEKEN 12X350ML", "pack"),
+        ("SKOL LATA 350ML 6 UN", "pack"),
+        ("HEINEKEN CHOPE 5L", "size not in the catalog"),
+        # A litre of chopp is likely a growler to take away: skipped on purpose (#313).
+        ("CHOPP HOP MUNDI CATHEDRAL COVE 1L", "size not in the catalog"),
+        ("BUDWEISER 343ML", "size without a type"),
+        ("CHOPP PILSEN 300ML", "no brand"),
+        ("CHOPP DA CASA 500ML", "no brand"),
+        ("HEINEKEN", "no size"),
+        ("BALDE HEINEKEN", "bucket size"),
+        ("HEINEKEN AMSTEL BALDE C/6", "two brands"),
+    ],
+)
+def test_explains_what_it_leaves_out(description: str, reason: str) -> None:
+    with pytest.raises(NotAServing) as error:
+        READER.read(description)
+    assert error.value.reason == reason
+
+
+def test_sends_aliases_the_ingest_api_knows() -> None:
+    serving = read_serving("CERV ORIG 600", committed_catalog())
+    catalog = committed_catalog()
+    assert (
+        serving.beer_alias in next(beer for beer in catalog.beers if beer.slug == serving.beer.slug).aliases
+    )
+    assert serving.brand_alias in next(b for b in catalog.brands if b.slug == serving.brand.slug).aliases
+    assert serving.key == "beer:antarctica-original|garrafa_600|1|single"
+
+
+def test_text_forms() -> None:
+    assert plain("  Cerveja  BRAHMA Lata 2,5L! ") == "cerveja brahma lata 2,5l"
+    assert words("cerv.heinek l.n.") == " cerveja heineken l n "

@@ -1,0 +1,47 @@
+{
+  "about": "Real menus for the vision spike (#45): public images and PDF pages the menu finder found (#305), with the beer prices a person read on each (6 Oct 2026). The spike fetches each one politely when it runs and never stores it. A format of null means any format matches.",
+  "menus": [
+    {
+      "id": "01",
+      "venue": "Proa Cervejaria (Pituba, Salvador)",
+      "url": "https://proacervejaria.com.br/wp-content/uploads/2024/09/PROA-1905-scaled-1920x900.jpg",
+      "notes": "Handwritten chalkboard tap list photographed with people in front: draught prices for 300 ml and 500 ml, growler prices per litre on the right. CNTP German Pils is crossed out.",
+      "expected": [
+        { "brand": "Carrie Nation", "price": 12.0, "format": "chopp" },
+        { "brand": "Carrie Nation", "price": 18.0, "format": "chopp" },
+        { "brand": "Frischtick", "price": 10.0, "format": "chopp" },
+        { "brand": "Frischtick", "price": 15.0, "format": "chopp" },
+        { "brand": "Barril Dobrado", "price": 15.0, "format": "chopp" },
+        { "brand": "Barril Dobrado", "price": 20.0, "format": "chopp" },
+        { "brand": "Vienna", "price": 10.0, "format": "chopp" },
+        { "brand": "Vienna", "price": 15.0, "format": "chopp" },
+        { "brand": "Acapulco", "price": 10.0, "format": "chopp" },
+        { "brand": "Acapulco", "price": 15.0, "format": "chopp" },
+        { "brand": "Mallampati", "price": 12.0, "format": "chopp" },
+        { "brand": "Mallampati", "price": 18.0, "format": "chopp" },
+        { "brand": "Brilhe por Dentro", "price": 8.0, "format": "chopp" },
+        { "brand": "Brilhe por Dentro", "price": 12.0, "format": "chopp" },
+        { "brand": "Gold Coast", "price": 12.0, "format": "chopp" },
+        { "brand": "Gold Coast", "price": 18.0, "format": "chopp" }
+      ]
+    },
+    {
+      "id": "02",
+      "venue": "Mundo Animal (Pituaçu, Salvador)",
+      "url": "https://www.euamomundoanimal.com.br/uploads/7yotw13g54gcsb2j8ljr.pdf",
+      "page": 5,
+      "notes": "Digital menu, drinks page: beers among sodas, juices and cocktails; one line lists three brands at one price.",
+      "expected": [
+        { "brand": "Heineken", "price": 14.9, "format": "long_neck" },
+        { "brand": "Amstel", "price": 12.9, "format": "long_neck" },
+        { "brand": "Amstel", "price": 15.9, "format": "garrafa" },
+        { "brand": "Heineken", "price": 19.9, "format": "garrafa" },
+        { "brand": "Original", "price": 19.9, "format": "garrafa" },
+        { "brand": "Skol", "price": 19.9, "format": "garrafa" },
+        { "brand": "Heineken", "price": 76.9, "format": null },
+        { "brand": "Heineken", "price": 16.9, "format": "chopp" },
+        { "brand": "Heineken", "price": 12.9, "format": "chopp" }
+      ]
+    }
+  ]
+}

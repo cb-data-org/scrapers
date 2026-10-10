@@ -1,0 +1,24 @@
+[
+  {
+    "market_id": "br",
+    "slug": "salvador",
+    "name": "Salvador",
+    "state": "BA",
+    "region": "salvador",
+    "timezone": "America/Bahia",
+    "center_lat": -12.9711,
+    "center_lng": -38.5108,
+    "active": true
+  },
+  {
+    "market_id": "br",
+    "slug": "lauro-de-freitas",
+    "name": "Lauro de Freitas",
+    "state": "BA",
+    "region": "salvador",
+    "timezone": "America/Bahia",
+    "center_lat": -12.8939,
+    "center_lng": -38.3269,
+    "active": true
+  }
+]

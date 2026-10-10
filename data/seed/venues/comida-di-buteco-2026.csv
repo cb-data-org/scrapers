@@ -1,0 +1,63 @@
+source_ref,city,name,kind,address,neighbourhood,lat,lng,osm_ref,note,edition,location
+https://comidadibuteco.com.br/buteco/o-boteco-do-bocca/,lauro-de-freitas,O Boteco do Bocca,boteco,"1ª. Travessa Luiz Tarquínio Pontes, 223",Centro,-12.89224,-38.31706,,local aproximado (centro do bairro),2026,bairro
+https://comidadibuteco.com.br/buteco/10256-revision-v1/,salvador,Abará da Vovó,boteco,"R. Direita de Santo Antônio, 16",Santo Antônio,-12.964897,-38.504814,,"local aproximado (rua, sem o número)",2026,rua
+https://comidadibuteco.com.br/buteco/bar-dgente/,salvador,Bar D'Gente,boteco,"Rua Thomaz Gonzaga, 144",Pernambués,-12.971482,-38.460157,,"local aproximado (rua, sem o número)",2026,rua
+https://comidadibuteco.com.br/buteco/3416-revision-v1/,salvador,Bar das Meninas,boteco,"Avenida Iemanjá, 211",Boca do Rio,-12.981077,-38.431628,,"local aproximado (rua, sem o número)",2026,rua
+https://comidadibuteco.com.br/buteco/bar-do-bonito/,salvador,Bar do Bonito,boteco,"R. Palame, 9",Itapuã,-12.947129,-38.368544,,"local aproximado (rua, sem o número)",2026,rua
+https://comidadibuteco.com.br/buteco/bar-do-chico/,salvador,Bar do Chico,boteco,"Rua Artur de Azevedo Machado, 65",STIEP,-12.983769,-38.448656,,"local aproximado (rua, sem o número)",2026,rua
+https://comidadibuteco.com.br/buteco/xique-xique/,salvador,Bar Xique Xique,boteco,"R. Rockefeller, 39",Barris,-12.984205,-38.51184,way/381050000,,2026,osm
+https://comidadibuteco.com.br/buteco/biritodromo-bar-de-praia/,salvador,Biritódromo Bar de Praia,boteco,"R. Souza Uzel, 4",Federação,-12.996162,-38.509376,,"local aproximado (rua, sem o número)",2026,rua
+https://comidadibuteco.com.br/buteco/bistro-negreiros/,salvador,Bistrô Negreiros,boteco,"Rua do Alvo, 10",Saúde,-12.971314,-38.506752,,"local aproximado (rua, sem o número)",2026,rua
+https://comidadibuteco.com.br/buteco/bistro9/,salvador,Bistrô9,boteco,"Av. José Joaquim Seabra, 151",Saúde,-12.972874,-38.507416,,"local aproximado (rua, sem o número); bairro na lista: Baixa dos Sapateiros",2026,rua
+https://comidadibuteco.com.br/buteco/botecar-bar-e-petiscaria/,salvador,Botecar Bar e Petiscaria,boteco,"Rua Andaraí, 723",Resgate,-12.961833,-38.46165,,"local aproximado (rua, sem o número)",2026,rua
+https://comidadibuteco.com.br/buteco/boteco-casquinha-de-siri/,salvador,Boteco Casquinha de Siri,boteco,"Rua Eduardo Dotto, 337",Paripe,-12.83672,-38.46595,,local aproximado (centro do bairro),2026,bairro
+https://comidadibuteco.com.br/buteco/boteco-da-sereia/,salvador,Boteco da Sereia,boteco,"Beco da Sereia, 7",Saúde,-12.973748,-38.504806,,"local aproximado (rua, sem o número)",2026,rua
+https://comidadibuteco.com.br/buteco/boteco-delicia-de-pirao/,salvador,Boteco Delícia de Pirão,boteco,"Estr. Ilha do Mocambo, 8",Trobogy,-12.931051,-38.408387,,"local aproximado (rua, sem o número)",2026,rua
+https://comidadibuteco.com.br/buteco/boteco-do-araujo/,salvador,Boteco do Araújo,boteco,"Rua José Mariz Pinto, 60",Baixa de Quintas,-12.960166,-38.496655,,"local aproximado (rua, sem o número)",2026,rua
+https://comidadibuteco.com.br/buteco/boteco-do-cheff/,salvador,Boteco do Cheff,boteco,"Rua Haeckel José de Almeida, 177",Piatã,-12.956497,-38.39301,,"local aproximado (rua, sem o número)",2026,rua
+https://comidadibuteco.com.br/buteco/boteco-do-gavazza/,salvador,Boteco do Gavazza,boteco,"Rua Greenfield, 174",Barra,-13.007427,-38.528351,node/1149057327,,2026,osm
+https://comidadibuteco.com.br/buteco/boteco-do-vale/,salvador,Boteco do Vale,boteco,"Vila São Roque, 413",Campinas de Brotas,-12.9711,-38.5108,,local desconhecido (centro da cidade): corrija antes de aprovar,2026,cidade
+https://comidadibuteco.com.br/buteco/cabana-da-sonia/,salvador,Cabana da Sônia,boteco,"Ladeira do Abaeté, 18",Itapuã,-12.949045,-38.362161,node/6822730652,,2026,osm
+https://comidadibuteco.com.br/buteco/cantina-dos-artistas/,salvador,Cantina dos Artistas,boteco,"Av. Oceano Pacífico, 4",São Marcos,-12.930599,-38.431976,,"local aproximado (rua, sem o número)",2026,rua
+https://comidadibuteco.com.br/buteco/casa-amarela-bar/,salvador,Casa Amarela Bar,boteco,"Rua do Carmo, 14",Santo Antônio,-12.968246,-38.507292,,"local aproximado (rua, sem o número)",2026,rua
+https://comidadibuteco.com.br/buteco/casa-de-carmem/,salvador,Casa da Carmem,boteco,"R. Visconde de Mauá, 174",Dois de Julho,-12.980523,-38.517896,,"local aproximado (rua, sem o número)",2026,rua
+https://comidadibuteco.com.br/buteco/casa-da-renatinha/,salvador,Casa da Renatinha,boteco,"Rua da Gratidão, 5",Piatã,-12.937486,-38.383639,,"local aproximado (rua, sem o número)",2026,rua
+https://comidadibuteco.com.br/buteco/cia-do-sertao/,salvador,Cia do Sertão,boteco,"Rua das Hortências, 288",Pituba,-12.99952,-38.45523,,local aproximado (centro do bairro),2026,bairro
+https://comidadibuteco.com.br/buteco/com-dende/,salvador,Com Dendê,boteco,"Rua Maria Felipa, 23",Engenho Velho de Brotas,-12.987115,-38.504276,,"local aproximado (rua, sem o número)",2026,rua
+https://comidadibuteco.com.br/buteco/3434-autosave-v1/,salvador,Crisana,boteco,"R. Artêmio Castro Valente, 295",Canabrava,-12.929936,-38.414053,,"local aproximado (rua, sem o número)",2026,rua
+https://comidadibuteco.com.br/buteco/escritorio-da-gadhega/,salvador,Escritório da Gadhega,boteco,"Rua Góes Calmon, 33",Saúde,-12.970728,-38.505787,,"local aproximado (rua, sem o número)",2026,rua
+https://comidadibuteco.com.br/buteco/forcas-bar-3/,salvador,Forças Bar,boteco,"Av. Antônio Carlos Magalhães, 54",,-12.9711,-38.5108,,local desconhecido (centro da cidade): corrija antes de aprovar,2026,cidade
+https://comidadibuteco.com.br/buteco/kitanda-emporio-gastrobar/,salvador,Kitanda Gastrobar,boteco,"Av. Oceânica, 297",Barra,-13.009729,-38.52923,,"local aproximado (rua, sem o número)",2026,rua
+https://comidadibuteco.com.br/buteco/la-barca-restaurante-e-petiscaria/,salvador,La Barca Restaurante e Petiscaria,boteco,"Rua Mário Covas, 1430",Trobogy,-12.934751,-38.410922,,"local aproximado (rua, sem o número)",2026,rua
+https://comidadibuteco.com.br/buteco/lar-em-casa/,salvador,Lar em casa,boteco,"Ladeira da Fonte, 44",,-12.9711,-38.5108,,local desconhecido (centro da cidade): corrija antes de aprovar,2026,cidade
+https://comidadibuteco.com.br/buteco/lingua-de-siri/,salvador,Língua de Siri,boteco,"R. Castelo Branco, 7",Castelo Branco,-12.902766,-38.431575,,"local aproximado (rua, sem o número)",2026,rua
+https://comidadibuteco.com.br/buteco/margarida-bar-e-restaurante/,salvador,Margarida Bar e Restaurante,boteco,"R. Osvaldo Cruz, 66",Rio Vermelho,-13.012758,-38.48534,,"local aproximado (rua, sem o número)",2026,rua
+https://comidadibuteco.com.br/buteco/meat-salvador/,salvador,Meat Salvador,boteco,"Rua Santa Rita de Cássia, 40",Graça,-13.00052,-38.526417,,"local aproximado (rua, sem o número)",2026,rua
+https://comidadibuteco.com.br/buteco/mocambinho-bar/,salvador,Mocambinho Bar e Restaurante,boteco,"Rua da Faísca, 12",Dois de Julho,-12.98282,-38.516965,node/10870302664,,2026,osm
+https://comidadibuteco.com.br/buteco/oh-pirao/,salvador,Oh Pirão,boteco,"R. Almiro Mario de Almeida, 34",Cabula,-12.95694,-38.4573,,local aproximado (centro do bairro),2026,bairro
+https://comidadibuteco.com.br/buteco/oshale-delicias-do-interior/,salvador,Ôshalé Delícias do Interior,boteco,"R. José Mariz Pinto, 18",Baixa de Quintas,-12.960166,-38.496655,,"local aproximado (rua, sem o número)",2026,rua
+https://comidadibuteco.com.br/buteco/outbecko-comida-bruta/,salvador,Outbecko Comida Bruta,boteco,"R. Território do Rio Branco, 125",Pituba,-13.00025,-38.457977,,,2026,endereco
+https://comidadibuteco.com.br/buteco/oxente-bar-e-petiscaria/,salvador,Oxente Bar e Petiscaria,boteco,"R. Silveira Martins, 445",Cabula,-12.955748,-38.45701,,"local aproximado (rua, sem o número)",2026,rua
+https://comidadibuteco.com.br/buteco/panela-de-barro/,salvador,Panela de Barro,boteco,"Rua Tamoio, 0",Plataforma,-12.89237,-38.47959,,local aproximado (centro do bairro),2026,bairro
+https://comidadibuteco.com.br/buteco/pasteco-gourmet/,salvador,Pasteco Gourmet,boteco,"Avenida Aliomar Baleeiro, 6078",,-12.9711,-38.5108,,local desconhecido (centro da cidade): corrija antes de aprovar,2026,cidade
+https://comidadibuteco.com.br/buteco/petiscaria-carnavalle/,salvador,Petiscaria Carnavalle,boteco,"Al. Campinas de Pirajá, 88",Campinas de Pirajá,-12.911253,-38.465548,,"local aproximado (rua, sem o número)",2026,rua
+https://comidadibuteco.com.br/buteco/point-do-gigante/,salvador,Point do Gigante,boteco,"Rua Álvaro da Franca Rocha, 5",Cajazeiras IV,-12.898162,-38.426225,,"local aproximado (rua, sem o número)",2026,rua
+https://comidadibuteco.com.br/buteco/porto-caymmi-bar-e-restaurante/,salvador,Porto Caymmi Bar e Restaurante,boteco,"Rua do Meio, 237",Rio Vermelho,-13.012977,-38.4862,node/5613949822,,2026,osm
+https://comidadibuteco.com.br/buteco/posto-12-bar-e-restaurante/,salvador,Posto 12 Bar e Restaurante,boteco,"Rua Aristides Milton, 33",Itapuã,-12.950911,-38.363235,node/6291384685,,2026,osm
+https://comidadibuteco.com.br/buteco/quintal-da-esquina/,salvador,Quintal da Esquina,boteco,"Rua das Esperas, 18",Pituba,-12.992887,-38.455473,node/8891132702,,2026,osm
+https://comidadibuteco.com.br/buteco/quiosque-do-mirante/,salvador,Quiosque do Mirante,boteco,"Ladeira do Abaeté, 0",Itapuã,-12.946062,-38.360655,,"local aproximado (rua, sem o número)",2026,rua
+https://comidadibuteco.com.br/buteco/rcanto-do-pascoal-2/,salvador,RCanto do Pascoal,boteco,"R. Direita de Santo Antônio, 1",Santo Antônio,-12.964897,-38.504814,,"local aproximado (rua, sem o número)",2026,rua
+https://comidadibuteco.com.br/buteco/recanto-do-moura/,salvador,Recanto do Moura,boteco,"R. Resende de Jesus, 6",São Caetano,-12.932392,-38.476399,,"local aproximado (rua, sem o número)",2026,rua
+https://comidadibuteco.com.br/buteco/rei-do-crepe-frances/,salvador,Rei do Crepe Francês,boteco,"Rua Oswaldo Sá Menezes, 8",Fazenda Grande I,-12.893121,-38.406035,,"local aproximado (rua, sem o número)",2026,rua
+https://comidadibuteco.com.br/buteco/restaurante-aconchego-da-zuzu/,salvador,Restaurante Aconchego da Zuzu,boteco,"Rua Quintino Bocayuva, 18",Garcia,-12.990083,-38.507794,,"local aproximado (rua, sem o número)",2026,rua
+https://comidadibuteco.com.br/buteco/restaurante-encantos-da-mare/,salvador,Restaurante Encantos da Maré,boteco,"R. Teodósio Rodrigues de Faria, 27",Bonfim,-12.924208,-38.509614,,"local aproximado (rua, sem o número)",2026,rua
+https://comidadibuteco.com.br/buteco/restaurante-tia-lu/,salvador,Restaurante Tia Lú,boteco,"R. Pedro Gama, 118",Federação,-12.995259,-38.50275,,"local aproximado (rua, sem o número)",2026,rua
+https://comidadibuteco.com.br/buteco/rita-da-lambreta/,salvador,Rita da Lambreta,boteco,"Av. Iemanjá, 92",Boca do Rio,-12.981077,-38.431628,,"local aproximado (rua, sem o número)",2026,rua
+https://comidadibuteco.com.br/buteco/sabor-nordestino-barra/,salvador,Sabor Nordestino Barra,boteco,"R. Dias D'Ávila, 110",Barra,-13.009205,-38.530907,,"local aproximado (rua, sem o número)",2026,rua
+https://comidadibuteco.com.br/buteco/sabores-dende/,salvador,Sabores & Dendê,boteco,"Rua Numa Pompílio Bittencourt, 395",Pernambués,-12.969283,-38.47128,,"local aproximado (rua, sem o número)",2026,rua
+https://comidadibuteco.com.br/buteco/sao-vicente-bar-e-restaurante/,salvador,São Vicente Bar e Restaurante,boteco,"Praça Gen. Inocêncio Galvão, 13",Dois de Julho,-12.9813,-38.516871,way/1226047049,,2026,osm
+https://comidadibuteco.com.br/buteco/solar-boteco/,salvador,Solar Boteco,boteco,"R. Desembargador Castelo Branco de Baixo, 1",Centro,-12.982621,-38.520172,,"local aproximado (rua, sem o número); bairro na lista: Solar do Unhão",2026,rua
+https://comidadibuteco.com.br/buteco/10287-revision-v1/,salvador,Sushili,boteco,"R. Alexandre de Gusmão, 50",Rio Vermelho,-13.009686,-38.495053,node/6086878710,,2026,osm
+https://comidadibuteco.com.br/buteco/taiobha/,salvador,Taiobha,boteco,"Rua das Angélicas, 131",Pituba,-12.991905,-38.458639,,"local aproximado (rua, sem o número)",2026,rua
+https://comidadibuteco.com.br/buteco/toka-do-tg/,salvador,Toka do TG,boteco,"Travessa Góes Calmon, 42",,-12.9711,-38.5108,,local desconhecido (centro da cidade): corrija antes de aprovar,2026,cidade
+https://comidadibuteco.com.br/buteco/vibes-solar/,salvador,Vibes Solar,boteco,"R. Desembargador Castelo Branco, 0",Centro,-12.982509,-38.519517,,"local aproximado (rua, sem o número)",2026,rua

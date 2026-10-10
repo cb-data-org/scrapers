@@ -1,0 +1,32 @@
+slug,brand,name,style,abv,non_alcoholic,aliases
+brahma-chopp,brahma,Brahma Chopp,lager,,false,brahma chopp|brahma pilsen
+brahma-duplo-malte,brahma,Brahma Duplo Malte,lager,,false,brahma duplo malte|duplo malte
+brahma-zero,brahma,Brahma Zero,lager,0,true,brahma zero|brahma 0 0
+skol-pilsen,skol,Skol Pilsen,lager,,false,skol pilsen|skol pilsner
+antarctica-pilsen,antarctica,Antarctica Pilsen,lager,,false,antarctica pilsen|antartica pilsen
+antarctica-original,original,Original,lager,,false,cerveja original
+heineken-lager,heineken,Heineken,lager,,false,heineken lager|heineken puro malte
+heineken-zero,heineken,Heineken 0.0,lager,0,true,heineken 0 0|heineken zero
+amstel-lager,amstel,Amstel Lager,lager,,false,amstel lager
+budweiser-lager,budweiser,Budweiser,lager,,false,budweiser lager|bud lager
+budweiser-zero,budweiser,Budweiser Zero,lager,0,true,budweiser zero|bud zero
+stella-artois-lager,stella-artois,Stella Artois,lager,,false,stella artois lager
+spaten-munich,spaten,Spaten,lager,,false,spaten munich|spaten munchen
+itaipava-pilsen,itaipava,Itaipava,lager,,false,itaipava pilsen
+itaipava-puro-malte,itaipava,Itaipava 100% Malte,lager,,false,itaipava 100 malte|itaipava puro malte
+devassa-tropical,devassa,Devassa Tropical Lager,lager,,false,devassa tropical|devassa tropical lager
+corona-extra,corona,Corona Extra,lager,,false,corona extra
+bohemia-pilsen,bohemia,Bohemia,lager,,false,bohemia pilsen
+petra-puro-malte,petra,Petra Puro Malte,lager,,false,petra puro malte
+crystal-pilsen,crystal,Crystal,lager,,false,crystal pilsen
+nova-schin-pilsen,schin,Nova Schin,lager,,false,nova schin pilsen
+imperio-lager,imperio,Império Lager,lager,,false,imperio lager
+kaiser-pilsen,kaiser,Kaiser,lager,,false,kaiser pilsen
+bavaria-premium,bavaria,Bavaria Premium,lager,,false,bavaria premium
+eisenbahn-pilsen,eisenbahn,Eisenbahn Pilsen,lager,,false,eisenbahn pilsen
+colorado-appia,colorado,Colorado Appia,,,false,colorado appia
+patagonia-amber-lager,patagonia,Patagonia Amber Lager,lager,,false,patagonia amber lager|patagonia amber
+goose-island-midway,goose-island,Goose Island Midway IPA,ipa,,false,goose island midway|midway ipa
+sol-premium,sol,Sol Premium,lager,,false,sol premium lager
+estrella-galicia-especial,estrella-galicia,Estrella Galicia Especial,lager,,false,estrella galicia especial
+guinness-draught,guinness,Guinness Draught,stout,,false,guinness draught
