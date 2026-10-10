@@ -1,0 +1,64 @@
+name: Scrapers
+
+# Preço da Hora every hour (at most 30 searches, 20 s apart: about ten minutes), so a round over the whole city
+# finishes inside the site's 72-hour window; at 08:00 UTC (05:00 in Salvador) also every other adapter that is due
+# (OpenStreetMap weekly). Public repository: GitHub Actions minutes are free.
+on:
+  schedule:
+    - cron: "7 * * * *"
+  workflow_dispatch:
+    inputs:
+      adapters:
+        description: "Adapters to run now, space-separated (empty: the schedule's choice)"
+        default: ""
+
+concurrency:
+  group: scrapers
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: apps/scrapers
+    env:
+      CB_API_URL: ${{ vars.CB_API_URL }}
+      CB_INGEST_TOKEN: ${{ secrets.CB_INGEST_TOKEN }}
+      CB_STORES: ${{ vars.CB_STORES || '1' }}
+      ADAPTERS: ${{ inputs.adapters }}
+      CB_CACHE_DIR: ${{ github.workspace }}/.scrapers-cache
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          working-directory: apps/scrapers
+          enable-cache: true
+      - run: uv sync --locked --no-dev
+      - uses: actions/cache/restore@v4
+        with:
+          path: .scrapers-cache
+          key: scrapers-cache-${{ github.run_id }}
+          restore-keys: scrapers-cache-
+      - name: Run
+        run: |
+          if [ -z "$CB_API_URL" ] || [ -z "$CB_INGEST_TOKEN" ]; then
+            echo "::notice::Set the variable CB_API_URL and the secret CB_INGEST_TOKEN to send items."
+            exit 0
+          fi
+          if [ -n "$ADAPTERS" ]; then
+            uv run cb run $ADAPTERS
+          elif [ "$(date -u +%H)" = "08" ]; then
+            uv run cb run --due
+          else
+            uv run cb run precodahora
+          fi
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .scrapers-cache
+          key: scrapers-cache-${{ github.run_id }}
