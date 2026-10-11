@@ -39,7 +39,9 @@ log = logging.getLogger(__name__)
 
 #: Pituba and its edges (Itaigara, Caminho das Árvores, Jardim Armação's end): south, west, north, east.
 BOX = (-13.016, -38.478, -12.982, -38.440)
-KINDS = re.compile(r"bar|pub|brew|beer|restaurant|gastro|lounge|bistro|pizz|grill|steak|seafood|food")
+#: Places that serve beer at a table: bars first; no shops, fast food or cafés.
+KINDS = re.compile(r"bar|pub|brew|beer|gastro|lounge|bistro|pizz|grill|steak|seafood|barbecue|restaurant")
+NOT_KINDS = re.compile(r"store|fast_food|cafe|bakery|juice|ice_cream|dessert|vegan|health|coffee")
 SOCIAL = re.compile(r"instagram|facebook|linktr\.ee|linkr\.bio|wa\.me|whatsapp|tiktok|ifood|goomer", re.I)
 MAX_AGE_DAYS = 180
 PRICE = re.compile(r"(?:r\$\s*)?(\d{1,3}(?:[.,]\d{2}))\b", re.I)
@@ -61,7 +63,7 @@ def bars(path: Path) -> list[dict[str, Any]]:
             if located is None or not (south <= located[0] <= north and west <= located[1] <= east):
                 continue
             kind = str(category(props) or "")
-            if not KINDS.search(kind) or float(props.get("confidence") or 0) < 0.5:
+            if not KINDS.search(kind) or NOT_KINDS.search(kind) or float(props.get("confidence") or 0) < 0.5:
                 continue
             names = props.get("names") or {}
             links = [str(url) for url in (props.get("websites") or []) + (props.get("socials") or [])]
@@ -75,7 +77,9 @@ def bars(path: Path) -> list[dict[str, Any]]:
                     "instagram": next((u for u in links if "instagram" in u.lower()), None),
                 }
             )
-    return [bar for bar in found if bar["name"]]
+    # Bars before restaurants: they are the ones the site is about.
+    named = [bar for bar in found if bar["name"]]
+    return sorted(named, key=lambda bar: (not re.search(r"bar|pub|brew|beer", bar["category"]), bar["name"]))
 
 
 def ocr(image: Path) -> str:
@@ -118,6 +122,18 @@ def prices(text: str, reader: ServingReader) -> list[dict[str, Any]]:
     return found
 
 
+def page_text(client: PoliteClient, url: str) -> str:
+    """A page's visible text, a line per block: menus written into the page itself."""
+    try:
+        html = client.get(url).text
+    except Exception:
+        return ""
+    html = re.sub(r"(?is)<(script|style)[^>]*>.*?</\1>", " ", html)
+    html = re.sub(r"(?i)<br\s*/?>|</(p|div|li|tr|h\d)>", "\n", html)
+    text = re.sub(r"<[^>]+>", " ", html)
+    return "\n".join(" ".join(line.split()) for line in text.splitlines() if line.strip())
+
+
 def dated(client: PoliteClient, url: str) -> datetime | None:
     """The file's own date: the server's Last-Modified (PDF pages share their PDF's)."""
     try:
@@ -158,11 +174,18 @@ def main(argv: list[str] | None = None) -> int:
         )
         lines.append("")
         totals = {"crawled": 0, "menus": 0, "beers": 0, "fresh": 0, "match": 0, "differ": 0}
+        platforms: dict[str, int] = {}
+        statuses: dict[str, int] = {}
         for bar in with_site[:45]:
             url = normalize_url(bar["website"]) or ""
             report = finder.crawl(Site(url, [bar["name"]], "bar", "pituba"))
             totals["crawled"] += 1
             beers: list[dict[str, Any]] = []
+            if report.status != "robots.txt disallows" and not report.status.startswith("blocked"):
+                for item in prices(page_text(client, url), reader):
+                    item["age_days"] = None
+                    item["source"] = url
+                    beers.append(item)
             for candidate in report.candidates:
                 text = ocr(out / candidate.file)
                 found = prices(text, reader)
@@ -174,6 +197,8 @@ def main(argv: list[str] | None = None) -> int:
                         item["source"] = candidate.asset_url
                     beers.extend(found)
             totals["menus"] += bool(report.candidates)
+            key = report.status.split(" (")[0].split(":")[0]
+            statuses[key] = statuses.get(key, 0) + 1
             totals["beers"] += len(beers)
             fresh = [b for b in beers if b["age_days"] is not None and b["age_days"] <= MAX_AGE_DAYS]
             totals["fresh"] += len(fresh)
@@ -198,7 +223,14 @@ def main(argv: list[str] | None = None) -> int:
                     if ours_match
                     else ""
                 )
+                + (
+                    f"; platforms: {', '.join(sorted({n for n, _ in report.platforms}))}"
+                    if report.platforms
+                    else ""
+                )
             )
+            for name, _link in report.platforms:
+                platforms[name] = platforms.get(name, 0) + 1
             for beer in beers[:6]:
                 age = f"{beer['age_days']} d old" if beer["age_days"] is not None else "undated"
                 lines.append(f"    - `{beer['line']}` → {beer['format']} R$ {beer['price']:.2f} ({age})")
@@ -210,6 +242,12 @@ def main(argv: list[str] | None = None) -> int:
             f"{totals['beers']} beer prices read ({totals['fresh']} dated within {MAX_AGE_DAYS} days); "
             "against our listed prices: "
             f"{totals['match']} equal, {totals['differ']} different.",
+            "Sites: "
+            + ", ".join(f"{k} {v}" for k, v in sorted(statuses.items(), key=lambda kv: -kv[1]))
+            + ".",
+            "Online-menu platforms linked: "
+            + (", ".join(f"{k} {v}" for k, v in sorted(platforms.items(), key=lambda kv: -kv[1])) or "none")
+            + ".",
             "",
             "Instagram: " + ", ".join(sorted({b["name"] for b in places if b["instagram"]})[:60]),
         ]
