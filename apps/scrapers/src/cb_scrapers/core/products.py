@@ -2,7 +2,7 @@
 
 "CERV BRAHMA LT 350ML" → Brahma, lata 350 ml · "BALDE C/5 HEINEKEN LN" → Heineken, a bucket of 5 long necks
 (size not written) · "CHOPP HEINEKEN 500ML" → Heineken, chopp 500 ml · "BRAHMA CHOPP 600" → the beer Brahma
-Chopp in a 600 ml bottle.
+Chopp in a 600 ml bottle · "CHOPP PILSEN 300ML" → a chopp 300 ml of no named brand (only with a written size).
 
 The keywords follow parseServing in @cb/domain (packages/domain/src/parse.ts), which reads the same kind of
 line in the Worker. This reader is stricter because what it accepts may publish by itself: retail packs and
@@ -27,9 +27,10 @@ class NotAServing(ValueError):
 
 @dataclass(frozen=True, slots=True)
 class Serving:
-    brand: CatalogBrand
+    #: None for a beer of no named brand ("CHOPP 300ML", "CERVEJA 600ML"), listed as just "Cerveja".
+    brand: CatalogBrand | None
     #: The catalog alias found, sent as the deal's brand so the ingest API matches it exactly.
-    brand_alias: str
+    brand_alias: str | None
     beer: CatalogBeer | None
     beer_alias: str | None
     #: Format type: lata, long_neck, garrafa, litrao, chopp, torre, pint…
@@ -44,7 +45,9 @@ class Serving:
     @property
     def key(self) -> str:
         """What is sold, for keys: "brand:heineken|long_neck_330|1|single"."""
-        product = f"beer:{self.beer.slug}" if self.beer else f"brand:{self.brand.slug}"
+        product = (
+            f"beer:{self.beer.slug}" if self.beer else f"brand:{self.brand.slug}" if self.brand else "generic"
+        )
         return f"{product}|{self.format_code}|{self.units}|{self.packaging}"
 
 
@@ -97,6 +100,8 @@ TYPE_OF_BARE_VOLUME |= {355: "long_neck", 473: "lata", 600: "garrafa", 1000: "li
 
 _VOLUME = re.compile(r"(?<![\d.,])(\d+(?:[.,]\d+)?) ?(ml|l|lt|lts|ltr|litros?)(?![a-z])")
 _BARE_NUMBER = re.compile(r"(?<![\d.,])(\d{3,4})(?![\d.,]| ?(?:x|un|und|unid)\b)")
+#: A beer without a brand: only these words, with a written size, make a serving of no named brand.
+_GENERIC = re.compile(r" (cervejas?|chopps?|chopes?|choppe|chop) ")
 _ZERO = re.compile(r" (zero|0 0|00|sem alcool|s alc\w*|z alc\w*|n alc\w*|s alcool) ")
 _PROMOTION = re.compile(
     r" (promo\w*|happy|hh|dobro|dobradinha|2x1|2 x 1|2 por 1|leve|compre|combo|cortesia) "
@@ -163,7 +168,7 @@ class ServingReader:
             raise NotAServing("pack")
 
         volume, rest = _volume(text)
-        brand, brand_alias, beer, beer_alias, rest_words = self._brand(words(rest))
+        brand, brand_alias, beer, beer_alias, rest_words = self._brand(words(rest), generic=True)
         if beer is not None and beer.non_alcoholic:
             raise NotAServing("zero alcohol")
 
@@ -197,10 +202,13 @@ class ServingReader:
                 raise NotAServing("size without a type")
         if kind is None:
             raise NotAServing("no size")
+        if brand is None and volume is None:
+            # A beer of no named brand needs its size written: nothing about it is in the catalog.
+            raise NotAServing("no brand")
         if kind == "torre":
             packaging = "torre"
         if volume is None:
-            volume = LONG_NECK_ML.get(brand.slug) if kind == "long_neck" else FIXED_VOLUME.get(kind)
+            volume = LONG_NECK_ML.get(brand.slug) if kind == "long_neck" and brand else FIXED_VOLUME.get(kind)
 
         size = volume or getattr(self.catalog.default_volume_ml, kind, None)
         code = next(
@@ -210,8 +218,11 @@ class ServingReader:
             raise NotAServing("size not in the catalog")
         return Serving(brand, brand_alias, beer, beer_alias, kind, code, volume, units, packaging)
 
-    def _brand(self, text: str) -> tuple[CatalogBrand, str, CatalogBeer | None, str | None, str]:
-        """The one brand (and beer, when its name is there) in `text`, and `text` without them."""
+    def _brand(
+        self, text: str, generic: bool = False
+    ) -> tuple[CatalogBrand | None, str | None, CatalogBeer | None, str | None, str]:
+        """The one brand (and beer, when its name is there) in `text`, and `text` without them. With
+        `generic`, a line that only says cerveja or chopp has no brand (None) instead of raising."""
         beer, beer_alias = None, None
         for alias, candidate in self.beers:
             if alias in text:
@@ -232,6 +243,8 @@ class ServingReader:
         if len(found) > 1:
             raise NotAServing("two brands")
         if not found:
+            if generic and _GENERIC.search(text):
+                return None, None, None, None, text
             raise NotAServing("no brand")
         [(brand, brand_alias)] = found.values()
         return brand, brand_alias, None, None, text

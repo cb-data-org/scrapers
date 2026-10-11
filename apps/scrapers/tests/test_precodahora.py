@@ -158,8 +158,9 @@ def test_bars_beers_become_venues_and_deals(adapter: PrecoDaHora, register_site:
         ("deal", "osm:node/1|brand:heineken|long_neck_330|1|single"),
         ("venue", f"cnpj:{SABORES}"),
         ("deal", f"cnpj:{SABORES}|beer:antarctica-original|garrafa_600|1|single"),
+        ("deal", f"cnpj:{SABORES}|generic|chopp_500|1|single"),
     ]
-    ze, chopp, heineken, sabores, original = (dict(item.data) for item in items)
+    ze, chopp, heineken, sabores, original, house = (dict(item.data) for item in items)
     # Known to OpenStreetMap: that venue, with the CNPJ, so ingest fills it in instead of adding a pin.
     assert (ze["osm_ref"], ze["name"], ze["cnpj"]) == ("node/1", "Boteco do Zé", ZE)
     assert (chopp["venue_ref"], chopp["brand"], chopp["format"], chopp["volume_ml"], chopp["price"]) == (
@@ -201,7 +202,8 @@ def test_bars_beers_become_venues_and_deals(adapter: PrecoDaHora, register_site:
     assert adapter.skipped["shop: not a bar, restaurant or brewery (CNAE)"] == 1
     assert adapter.book.get(MEI).reasons == ["no trade name (one-person business)"]
     assert adapter.held == {MEI}
-    assert adapter.unread["CHOPP DA CASA 500ML"] == 1
+    # The house chopp names no brand but says its size: listed as just "Cerveja".
+    assert (house["brand"], house["beer"], house["format"], house["volume_ml"]) == (None, None, "chopp", 500)
 
 
 def test_every_item_fits_the_contract(adapter: PrecoDaHora) -> None:
@@ -214,7 +216,7 @@ def test_each_venue_is_sent_once_and_each_shop_looked_up_once(
 ) -> None:
     search(adapter, SEARCH)
     again = search(adapter, SEARCH, key="heineken @ rio-vermelho p1")
-    assert [item.kind for item in again] == ["deal", "deal", "deal"]
+    assert [item.kind for item in again] == ["deal", "deal", "deal", "deal"]
     assert len([path for path in register_site.paths() if path != "/robots.txt"]) == 4
 
 

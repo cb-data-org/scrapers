@@ -61,11 +61,16 @@ READER = ServingReader(committed_catalog())
         ("BALDE C/5 STELLA ARTOIS LN", "stella-artois", None, "long_neck_330", None, 5, "balde"),
         ("BUDWEISER LONG NECK", "budweiser", None, "long_neck_330", 330, 1, "single"),
         ("BALDE HEINEKEN LN 330ML 6UN", "heineken", None, "long_neck_330", 330, 6, "balde"),
+        # No named brand, but a written size: listed as just "Cerveja".
+        ("CHOPP PILSEN 300ML", None, None, "chopp_300", 300, 1, "single"),
+        ("CHOPP DA CASA 500ML", None, None, "chopp_500", 500, 1, "single"),
+        ("CERVEJA 600ML", None, None, "garrafa_600", 600, 1, "single"),
+        ("CERV LATA 350", None, None, "lata_350", 350, 1, "single"),
     ],
 )
 def test_reads_servings(
     description: str,
-    brand: str,
+    brand: str | None,
     beer: str | None,
     code: str,
     volume: int | None,
@@ -73,7 +78,8 @@ def test_reads_servings(
     packaging: str,
 ) -> None:
     serving = READER.read(description)
-    assert (serving.brand.slug, serving.beer.slug if serving.beer else None) == (brand, beer)
+    slugs = (serving.brand.slug if serving.brand else None, serving.beer.slug if serving.beer else None)
+    assert slugs == (brand, beer)
     assert (serving.format_code, serving.volume_ml, serving.units, serving.packaging) == (
         code,
         volume,
@@ -96,8 +102,10 @@ def test_reads_servings(
         # A litre of chopp is likely a growler to take away: skipped on purpose (#313).
         ("CHOPP HOP MUNDI CATHEDRAL COVE 1L", "size not in the catalog"),
         ("BUDWEISER 343ML", "size without a type"),
-        ("CHOPP PILSEN 300ML", "no brand"),
-        ("CHOPP DA CASA 500ML", "no brand"),
+        # No brand and no written size: nothing to go on.
+        ("CHOPP PILSEN", "no brand"),
+        ("CERVEJA GARRAFA", "no brand"),
+        ("REFRIGERANTE LATA 350ML", "no brand"),
         ("HEINEKEN", "no size"),
         ("BALDE HEINEKEN", "bucket size"),
         ("HEINEKEN AMSTEL BALDE C/6", "two brands"),
@@ -117,6 +125,12 @@ def test_sends_aliases_the_ingest_api_knows() -> None:
     )
     assert serving.brand_alias in next(b for b in catalog.brands if b.slug == serving.brand.slug).aliases
     assert serving.key == "beer:antarctica-original|garrafa_600|1|single"
+
+
+def test_a_beer_of_no_named_brand_sends_none() -> None:
+    serving = READER.read("CHOPP PILSEN 300ML")
+    assert (serving.brand_alias, serving.beer_alias) == (None, None)
+    assert serving.key == "generic|chopp_300|1|single"
 
 
 def test_text_forms() -> None:
