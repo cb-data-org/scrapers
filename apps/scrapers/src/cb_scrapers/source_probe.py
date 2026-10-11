@@ -244,11 +244,133 @@ def pdh_api(args: list[str]) -> list[str]:
     return lines
 
 
+#: Bars seen on receipts around Pituba (bar finder, 11 Oct 2026), searched by name.
+NAMES = ("baiano churrasqueiro", "quintal da esquina", "boteco do caranguejo", "bar piaui")
+PITUBA = {"latitude": -12.9990, "longitude": -38.4590, "raio": 2, "horas": 72, "pagina": 1}
+
+
+def short(value: Any) -> str:
+    return " ".join(str(value).split())[:60]
+
+
+def pdh_search(args: list[str]) -> list[str]:
+    """Owner, 11 Oct 2026: does the box's "nome do produto, marca ou o código de barras" work with barcodes,
+    and with a bar's name? And does the site have a filter by shop?"""
+    lines = ["# Preço da Hora: barcodes and names", ""]
+    with PoliteClient(delay=20.0, retries=0, timeout=30) as client:
+        try:
+            page = client.get(PDH_SEARCH)
+            token = re.search(r'id="validate"\s+data-id="([^"]+)"', page.text)
+            if re.search(r'id="rc"\s+data-id="[^"]+"', page.text) or not token:
+                raise BlockedError(PDH_SEARCH, "CAPTCHA or no CSRF token")
+            headers = {
+                "X-CSRFToken": token.group(1),
+                "X-Requested-With": "XMLHttpRequest",
+                "Referer": PDH_SEARCH,
+                "Origin": PDH,
+            }
+            # What the page's own script calls and sends.
+            scripts = [
+                urljoin(PDH_SEARCH, src)
+                for src in re.findall(r'<script[^>]+src="([^"]+)"', page.text)
+                if "/site/" in src or "app" in src
+            ]
+            for script in scripts[:2]:
+                text = client.get(script).text
+                urls = sorted(set(re.findall(r"""["'](/[a-z][a-z0-9_/-]{2,40}/?)["']""", text)))
+                lines.append(f"Script {script}: paths {', '.join(urls[:40])}")
+                fields = sorted(
+                    set(
+                        re.findall(
+                            r"\b(gtin|ean|codigo\w*|barras?\w*|cnpj\w*|estabelecimento\w*|termo\w*)\b",
+                            text,
+                            re.I,
+                        )
+                    )
+                )
+                lines.append(f"  fields: {', '.join(fields[:40])}")
+            form = re.findall(r'<(?:input|select)[^>]+name="([^"]+)"', page.text)
+            lines.append(f"Form fields on the page: {', '.join(sorted(set(form)))}")
+
+            def search(term: str, **extra: Any) -> list[dict[str, Any]]:
+                data = {**PITUBA, "termo": term, "ordenar": "preco.desc", **extra}
+                answer = client.post(PDH_SEARCH, data=data, headers=headers).json()
+                rows = (answer.get("resultado") if isinstance(answer, dict) else None) or []
+                total = answer.get("totalRegistros") if isinstance(answer, dict) else None
+                shops = {short((row.get("estabelecimento") or {}).get("nomeEstabelecimento")) for row in rows}
+                lines.append(f"- `{term}` {extra or ''}: {total} sales, {len(shops)} shops on page 1")
+                return rows
+
+            rows = search("heineken")
+            if rows:
+                product, shop = rows[0].get("produto") or {}, rows[0].get("estabelecimento") or {}
+                lines.append(f"  produto fields: {', '.join(f'{k}={short(v)}' for k, v in product.items())}")
+                lines.append(f"  estabelecimento fields: {', '.join(sorted(shop))}")
+            # Barcodes: what the sales carry, how many shops share one, and a search by it.
+            codes: dict[str, set[str]] = {}
+            descriptions: dict[str, set[str]] = {}
+            for row in rows:
+                product = row.get("produto") or {}
+                code = next(
+                    (
+                        str(product[k])
+                        for k in ("gtin", "ean", "codigoBarras", "codBarras", "codigo")
+                        if product.get(k)
+                    ),
+                    None,
+                )
+                if code:
+                    shop = short((row.get("estabelecimento") or {}).get("cnpj"))
+                    codes.setdefault(code, set()).add(shop)
+                    descriptions.setdefault(code, set()).add(short(product.get("descricao")))
+            lines.append(f"  codes on page 1: {len(codes)} distinct")
+            for code, shops in sorted(codes.items(), key=lambda pair: -len(pair[1]))[:6]:
+                lines.append(
+                    f"    {code}: {len(shops)} shops, written as {' | '.join(sorted(descriptions[code])[:4])}"
+                )
+            for code in [
+                c for c, _ in sorted(codes.items(), key=lambda pair: -len(pair[1]))[:2] if c.isdigit()
+            ]:
+                found = search(code)
+                same = sum(
+                    1 for row in found if code in {str(v) for v in (row.get("produto") or {}).values()}
+                )
+                lines.append(f"    searching {code}: {same} of {len(found)} rows carry that code")
+            # Bar names.
+            for name in NAMES:
+                found = search(name)
+                own = [
+                    row
+                    for row in found
+                    if all(
+                        word in normalize(str((row.get("estabelecimento") or {}).get("nomeEstabelecimento")))
+                        for word in name.split()[:2]
+                    )
+                ]
+                products = [r.get("produto") or {} for r in own[:4]]
+                samples = "; ".join(
+                    f"{short(p.get('descricao'))} R$ {p.get('precoUnitario')}" for p in products
+                )
+                suffix = f": {samples}" if samples else ""
+                lines.append(f"    rows from a shop with that name: {len(own)} of {len(found)}{suffix}")
+            # A filter by shop.
+            cnpj = next(iter(next(iter(codes.values()), set())), "")
+            if cnpj:
+                for key in ("cnpj", "estabelecimento", "cnpjEstabelecimento"):
+                    found = search("cerveja", **{key: cnpj})
+                    mine = sum(short((r.get("estabelecimento") or {}).get("cnpj")) == cnpj for r in found)
+                    lines.append(f"    {key}={cnpj}: {mine} of {len(found)} rows from that shop")
+        except (BlockedError, DisallowedError, httpx.HTTPError, ValueError) as error:
+            lines.append(f"Stopped: {error}"[:200])
+    return lines
+
+
 def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
     args = argv if argv is not None else sys.argv[1:]
     out = Path(args[args.index("--out") + 1]) if "--out" in args else None
-    lines = venues(args) if args and args[0] == "venues" else pdh_api(args)
+    mode = args[0] if args else ""
+    lines = venues(args) if mode == "venues" else pdh_search(args) if mode == "pdh-search" else pdh_api(args)
     text = "\n".join(lines)
     print(text)
     if out:

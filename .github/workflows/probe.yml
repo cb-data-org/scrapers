@@ -10,7 +10,7 @@ on:
       probe:
         description: Which check
         type: choice
-        options: [venues, pdh-api, bars]
+        options: [venues, pdh-api, pdh-search, bars]
         default: venues
 
 permissions:
