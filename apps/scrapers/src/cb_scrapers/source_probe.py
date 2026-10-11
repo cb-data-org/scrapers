@@ -60,6 +60,8 @@ PDH_BASE = {
     "ordenar": "preco.asc",
 }
 PAGE_SIZE_NAMES = (
+    "registrosporPagina",
+    "registrosPorPagina",
     "quantidade",
     "qtd",
     "limite",
@@ -221,8 +223,9 @@ def pdh_api(args: list[str]) -> list[str]:
                 rows = answer.get("resultado") if isinstance(answer, dict) else None
                 count = len(rows or [])
                 total = answer.get("totalPaginas") if isinstance(answer, dict) else None
-                keys = sorted(answer) if isinstance(answer, dict) else type(answer).__name__
-                lines.append(f"- {label}: {count} results, totalPaginas {total}, keys {keys}")
+                fields = ("totalRegistros", "registrosporPagina", "registrosdaPagina")
+                counts = {key: answer.get(key) for key in fields} if isinstance(answer, dict) else answer
+                lines.append(f"- {label}: {count} results, totalPaginas {total}, {counts}")
                 return count, total
 
             base, _ = search("baseline (raio 2, horas 72)")
@@ -232,6 +235,8 @@ def pdh_api(args: list[str]) -> list[str]:
                     lines.append(f"  **{name} gives more per page**")
                     break
             search("raio 10", raio=10)
+            search("raio 0.5", raio=0.5)
+            search("pagina 5", pagina=5)
             search("horas 168", horas=168)
             search("pagina 2", pagina=2)
         except (BlockedError, DisallowedError, httpx.HTTPError, ValueError) as error:

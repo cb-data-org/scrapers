@@ -1,11 +1,13 @@
 name: Scrapers
 
-# Preço da Hora every hour (at most 30 searches, 20 s apart: about ten minutes), so a round over the whole city
-# finishes inside the site's 72-hour window; at 08:00 UTC (05:00 in Salvador) also every other adapter that is due
-# (OpenStreetMap weekly). Public repository: GitHub Actions minutes are free.
+# Preço da Hora up to three times an hour (at most 30 searches, 20 s apart: about ten minutes; one run at a
+# time), so a round over the whole city finishes inside the site's 72-hour window, and every run also does any
+# other adapter that is due (OpenStreetMap and Overture weekly). GitHub drops many scheduled runs under load (two
+# of thirteen hourly ones ran on 10-11 Oct 2026), hence three tries an hour at odd minutes.
+# Public repository: GitHub Actions minutes are free.
 on:
   schedule:
-    - cron: "7 * * * *"
+    - cron: "7,27,47 * * * *"
   workflow_dispatch:
     inputs:
       adapters:
@@ -52,10 +54,8 @@ jobs:
           fi
           if [ -n "$ADAPTERS" ]; then
             uv run cb run $ADAPTERS
-          elif [ "$(date -u +%H)" = "08" ]; then
-            uv run cb run --due
           else
-            uv run cb run precodahora
+            uv run cb run precodahora --due
           fi
       - uses: actions/cache/save@v4
         if: always()
