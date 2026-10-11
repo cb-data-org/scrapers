@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "httpx>=0.28.1",
+    "overturemaps>=1.0.2",
     "pillow>=11",
     "pydantic>=2.13.5",
     "pypdfium2>=4.30",

@@ -359,6 +359,10 @@ class VenueDraft(BaseModel):
     cnpj: Annotated[str | None, Field(pattern="^\\d{14}$")]
     instagram: Annotated[str | None, Field(pattern="^[a-z0-9._]{1,30}$")]
     cardapioweb_slug: Annotated[str | None, Field(max_length=80)]
+    overture_id: Annotated[str | None, Field(pattern="^[A-Za-z0-9-]{8,64}$")] = None
+    """
+    Overture Maps place id (GERS); sources other than overture_places leave it out
+    """
     opening_hours: Annotated[str | None, Field(max_length=255)]
     """
     OpenStreetMap opening_hours syntax
@@ -730,6 +734,10 @@ class VenueModel(BaseModel):
     cnpj: Annotated[str | None, Field(pattern="^\\d{14}$")]
     instagram: Annotated[str | None, Field(pattern="^[a-z0-9._]{1,30}$")]
     cardapioweb_slug: Annotated[str | None, Field(max_length=80)]
+    overture_id: Annotated[str | None, Field(pattern="^[A-Za-z0-9-]{8,64}$")] = None
+    """
+    Overture Maps place id (GERS)
+    """
     opening_hours: Annotated[str | None, Field(max_length=255)]
     """
     OpenStreetMap opening_hours syntax
@@ -782,6 +790,10 @@ class Create(BaseModel):
     cnpj: Annotated[str | None, Field(pattern="^\\d{14}$")] = None
     instagram: Annotated[str | None, Field(pattern="^[a-z0-9._]{1,30}$")] = None
     cardapioweb_slug: Annotated[str | None, Field(max_length=80)] = None
+    overture_id: Annotated[str | None, Field(pattern="^[A-Za-z0-9-]{8,64}$")] = None
+    """
+    Overture Maps place id (GERS)
+    """
     opening_hours: Annotated[str | None, Field(max_length=255)] = None
     """
     OpenStreetMap opening_hours syntax
@@ -1172,6 +1184,10 @@ class VenueCreate(BaseModel):
     cnpj: Annotated[str | None, Field(pattern="^\\d{14}$")] = None
     instagram: Annotated[str | None, Field(pattern="^[a-z0-9._]{1,30}$")] = None
     cardapioweb_slug: Annotated[str | None, Field(max_length=80)] = None
+    overture_id: Annotated[str | None, Field(pattern="^[A-Za-z0-9-]{8,64}$")] = None
+    """
+    Overture Maps place id (GERS)
+    """
     opening_hours: Annotated[str | None, Field(max_length=255)] = None
     """
     OpenStreetMap opening_hours syntax
@@ -1208,6 +1224,10 @@ class VenuePatch(BaseModel):
     cnpj: Annotated[str | None, Field(pattern="^\\d{14}$")] = None
     instagram: Annotated[str | None, Field(pattern="^[a-z0-9._]{1,30}$")] = None
     cardapioweb_slug: Annotated[str | None, Field(max_length=80)] = None
+    overture_id: Annotated[str | None, Field(pattern="^[A-Za-z0-9-]{8,64}$")] = None
+    """
+    Overture Maps place id (GERS)
+    """
     opening_hours: Annotated[str | None, Field(max_length=255)] = None
     """
     OpenStreetMap opening_hours syntax
