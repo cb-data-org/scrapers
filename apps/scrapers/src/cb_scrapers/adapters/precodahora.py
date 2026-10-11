@@ -651,7 +651,9 @@ class PrecoDaHora(Adapter):
                 barcode = term.isdigit()
                 parent = self.narrowing.get((term, place))
                 # Shops' single beers come last in the dearest-first pages: one cheapest-first page for them.
-                if self.stores and not barcode:
+                # (A full pass reads every page anyway: no need.)
+                cheap_first = self.stores and not barcode and not self.focus
+                if cheap_first:
                     yield self.search_task(term, place, 1, cheapest=True)
                 split = useless = False
                 for page in range(1, MAX_PAGES + 1):
@@ -685,7 +687,7 @@ class PrecoDaHora(Adapter):
                 if not split and total > CAP:
                     # Over the cap in a 1 km circle: what the dearest-first pages missed, cheapest first.
                     needed = min(MAX_PAGES, math.ceil((total - CAP) / PAGE_SIZE))
-                    for page in range(2 if self.stores else 1, needed + 1):
+                    for page in range(2 if cheap_first else 1, needed + 1):
                         if self.searches >= MAX_SEARCHES:
                             log.info("%d searches done; %d jobs wait", MAX_SEARCHES, len(queue))
                             return
