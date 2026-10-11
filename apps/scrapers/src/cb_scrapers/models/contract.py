@@ -310,6 +310,10 @@ class DealDraft(BaseModel):
     Units the price buys (5 for a bucket of 5)
     """
     packaging: Literal["single", "balde", "torre", "combo", "dobro"]
+    on_site: bool | None = None
+    """
+    To drink there (true) or take away (false) when it differs from the venue; null: as the venue
+    """
     price: Annotated[float, Field(gt=0.0, le=10000.0)]
     """
     Price paid, in currency units (9.99)
@@ -835,6 +839,10 @@ class Deal1(BaseModel):
     Units the price buys (5 for a bucket of 5, 2 for em dobro)
     """
     packaging: Literal["single", "balde", "torre", "combo", "dobro"] | None = None
+    on_site: bool | None = None
+    """
+    To drink there (true) or take away (false) when it differs from the venue; null: as the venue
+    """
     price_minor: Annotated[int | None, Field(gt=0, le=1000000)] = None
     """
     Price paid, minor units (999 = R$ 9,99)
@@ -1424,6 +1432,10 @@ class DealCreate(BaseModel):
     Units the price buys (5 for a bucket of 5, 2 for em dobro)
     """
     packaging: Literal["single", "balde", "torre", "combo", "dobro"] | None = None
+    on_site: bool | None = None
+    """
+    To drink there (true) or take away (false) when it differs from the venue; null: as the venue
+    """
     price_minor: Annotated[int, Field(gt=0, le=1000000)]
     """
     Price paid, minor units (999 = R$ 9,99)
@@ -1465,6 +1477,10 @@ class DealPatch(BaseModel):
     Units the price buys (5 for a bucket of 5, 2 for em dobro)
     """
     packaging: Literal["single", "balde", "torre", "combo", "dobro"] | None = None
+    on_site: bool | None = None
+    """
+    To drink there (true) or take away (false) when it differs from the venue; null: as the venue
+    """
     price_minor: Annotated[int | None, Field(gt=0, le=1000000)] = None
     """
     Price paid, minor units (999 = R$ 9,99)
@@ -1908,6 +1924,10 @@ class Deal(BaseModel):
     Units the price buys (5 for a bucket of 5, 2 for em dobro)
     """
     packaging: Literal["single", "balde", "torre", "combo", "dobro"]
+    on_site: bool | None = None
+    """
+    To drink there (true) or take away (false) when it differs from the venue; null: as the venue
+    """
     price_minor: Annotated[int, Field(gt=0, le=1000000)]
     """
     Price paid, minor units (999 = R$ 9,99)

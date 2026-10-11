@@ -121,6 +121,10 @@ REGISTER = {
     MINHA_RECEITA.format(cnpj=SABORES): register_body(SABORES, 5611201, "CASA DOS SABORES"),
     MINHA_RECEITA.format(cnpj=GELADAS): register_body(GELADAS, 4723700, "CERVEJAS GELADAS"),
     MINHA_RECEITA.format(cnpj=MEI): register_body(MEI, 5611204, "", nature=2135),
+    # A churrascaria registered as a butcher's.
+    MINHA_RECEITA.format(cnpj="33444555000166"): register_body(
+        "33444555000166", 4722901, "O BAIANO CHURRASQUEIRO"
+    ),
 }
 
 
@@ -808,6 +812,37 @@ def test_supermarkets_and_depositos_single_beers_become_their_own_venues(adapter
     deals = [item.data for item in items if item.kind == "deal"]
     assert sorted(deal["price"] for deal in deals) == [2.99, 3.19]
     assert adapter.store_refs == {"cnpj:11222333000144", "cnpj:55666777000188"}
+
+
+def test_beer_at_bar_prices_lists_as_a_bar_price_whatever_the_shop(adapter: PrecoDaHora) -> None:
+    """A venue can be a shop and a bar (owner, 11 Oct 2026): a depósito's beer at three times the
+    supermarkets' is drunk there; a butcher's that charges like a bar becomes a restaurant."""
+    adapter.stores = True
+    store = shop("SUPERMERCADO BOM PRECO LTDA", "11222333000144", -13.0110, -38.4890)
+    deposito = shop("DEPOSITO DE BEBIDAS RIO VERMELHO", "55666777000188", -13.0105, -38.4895)
+    butcher = shop("O BAIANO CHURRASQUEIRO", "33444555000166", -13.0100, -38.4880)
+    items = search(
+        adapter,
+        page(
+            *(sale("CERV BRAHMA CHOPP LT 350ML", price, store) for price in (2.99, 3.09, 3.19)),
+            sale("CERV BRAHMA CHOPP LT 350ML", 3.29, deposito),
+            sale("CERV BRAHMA CHOPP LT 350ML", 8.0, deposito),
+            sale("CERV BRAHMA CHOPP LT 350ML", 9.0, butcher),
+            sale("CERV BRAHMA CHOPP LT 350ML", 3.5, butcher),
+        ),
+        key="chopp @ rio-vermelho cheap",
+    )
+    deals = {(item.data["venue_ref"], item.data["price"]): item for item in items if item.kind == "deal"}
+    assert deals[("cnpj:55666777000188", 3.29)].data["on_site"] is None  # to take away, as the depósito
+    table = deals[("cnpj:55666777000188", 8.0)]
+    assert table.data["on_site"] is True and table.source_ref.endswith("|on_site")
+    venues = {item.source_ref: item.data for item in items if item.kind == "venue"}
+    assert (venues["cnpj:33444555000166"]["kind"], venues["cnpj:33444555000166"]["on_site"]) == (
+        "restaurante",
+        True,
+    )
+    assert venues["cnpj:33444555000166"]["name"] == "O Baiano Churrasqueiro"
+    assert ("cnpj:33444555000166", 9.0) in deals and ("cnpj:33444555000166", 3.5) not in deals
 
 
 def test_shop_category() -> None:

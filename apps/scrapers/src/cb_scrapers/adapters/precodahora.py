@@ -276,6 +276,13 @@ STORE_NAME = re.compile(
     r"|assai|gbarbosa|bompreco|carrefour|hiperideal|mercearia|emporio|conveniencia)\b"
 )
 DEPOSITO_NAME = re.compile(r"\b(deposito|distribuidora|comercio de bebidas|bebidas)\b")
+#: A shop that isn't a bar by its registered activity but charges at least this many times the supermarkets'
+#: price for the same beer is serving it at a table (owner, 11 Oct 2026: O Baiano Churrasqueiro, registered
+#: as a butcher's, sells Heineken 600 ml at R$ 15). Those prices list as bar prices (on_site), the shop as a
+#: restaurant; a depósito's or a store's are bar prices too, while its cheap ones stay in its own category.
+BAR_PRICE_RATIO = 2.0
+#: Shops whose dear beer is still to take away: fuel stations and convenience stores.
+TAKEAWAY_CNAE = frozenset({4731800, 4729699})
 #: Main activities (CNAE) of depósitos: drinks retail and wholesale.
 DEPOSITO_CNAE = frozenset({4723700, 4635401, 4635402, 4635403, 4635499})
 
@@ -796,9 +803,17 @@ class PrecoDaHora(Adapter):
                     if store.ref not in self.announced:
                         self.announced.add(store.ref)
                         yield store.item
-                    yield self.deal(store, serving, product)
+                    served = self.bar_priced(shop, serving, product)
+                    yield self.deal(store, serving, product, on_site=True if served else None)
             elif shop.candidate:
                 page.append((shop, serving, product))
+            elif self.bar_priced(shop, serving, product):
+                venue = self.serving_venue(shop)
+                if venue is not None:
+                    if venue.ref not in self.announced:
+                        self.announced.add(venue.ref)
+                        yield venue.item
+                    yield self.deal(venue, serving, product)
         for shop, serving, product in page:
             venue = self.venue(shop, serving, product)
             if venue is None:
@@ -921,6 +936,58 @@ class PrecoDaHora(Adapter):
             self.venues[shop.cnpj] = self.venue_item(shop, str(name))
         return self.venues[shop.cnpj]
 
+    def bar_priced(self, shop: Shop, serving: Serving, product: dict[str, Any]) -> bool:
+        """At a bar's price: BAR_PRICE_RATIO times the supermarkets' or more (never a supermarket's own)."""
+        company = shop.company
+        if serving.units != 1 or shop.category == "mercado" or (company and company.cnae in TAKEAWAY_CNAE):
+            return False
+        median = self.shop_prices.median(serving_key(serving))
+        return bool(median) and float(product["precoUnitario"]) >= BAR_PRICE_RATIO * median
+
+    def serving_venue(self, shop: Shop) -> Venue | None:
+        """A shop outside the bars' activities that serves beer at bar prices, as a restaurant, once a run:
+        the OpenStreetMap venue when name and place match. Left out when the owner hid it, or without a trade
+        name."""
+        if shop.cnpj in self.venues:
+            return self.venues[shop.cnpj]
+        review = self.review.get(shop.cnpj)
+        company, bairro = shop.company, shop.bairro
+        name = display_name(company, shop.receipt_name) if company else None
+        venue = None
+        if review and review.decision == "hide":
+            self.skipped["serves at bar prices: hidden by the owner"] += 1
+        elif not (company and company.active and bairro and name and shop.lat and shop.lng):
+            self.skipped["serves at bar prices: no trade name or place"] += 1
+        else:
+            names = [n for n in (company.trade_name, shop.receipt_name, company.legal_name) if n]
+            match = best_match(names, shop.lat, shop.lng, self.osm or [], ignore=self.place_words(bairro))
+            if match:
+                data = {**match.data, "cnpj": shop.cnpj}
+                venue = Venue(
+                    f"osm:{data['osm_ref']}", str(data["name"]), Item("venue", f"cnpj:{shop.cnpj}", data)
+                )
+            else:
+                data = {
+                    "city": bairro.city,
+                    "name": name,
+                    "lat": round(shop.lat, 6),
+                    "lng": round(shop.lng, 6),
+                    "kind": "restaurante",
+                    "on_site": True,
+                    "address": shop.address,
+                    "neighbourhood": bairro.slug,
+                    "osm_ref": None,
+                    "cnpj": shop.cnpj,
+                    "instagram": None,
+                    "cardapioweb_slug": None,
+                    "opening_hours": None,
+                    "attributes": [],
+                }
+                venue = Venue(f"cnpj:{shop.cnpj}", name, Item("venue", f"cnpj:{shop.cnpj}", data))
+            self.skipped["shop serving at bar prices (listed as a restaurant)"] += 1
+        self.venues[shop.cnpj] = venue
+        return venue
+
     def store_venue(self, shop: Shop) -> Venue | None:
         """A supermarket or depósito as a venue for its own category (not for drinking on site), once a run.
         One-person businesses without a trade name are left out: their legal name is their owner's name."""
@@ -999,7 +1066,10 @@ class PrecoDaHora(Adapter):
         with Path(path).open("a", encoding="utf-8") as summary:
             summary.write(intro + table + "\n")
 
-    def deal(self, venue: Venue, serving: Serving, product: dict[str, Any]) -> Item:
+    def deal(
+        self, venue: Venue, serving: Serving, product: dict[str, Any], on_site: bool | None = None
+    ) -> Item:
+        """A sale as a deal; `on_site` when it is drunk there unlike the venue (a depósito's table beer)."""
         description = " ".join(str(product.get("descricao") or "").split())
         observed = sale_date(product.get("data"))
         data = {
@@ -1011,6 +1081,7 @@ class PrecoDaHora(Adapter):
             "volume_ml": serving.volume_ml,
             "units": serving.units,
             "packaging": serving.packaging,
+            "on_site": on_site,
             "price": round(float(product["precoUnitario"]), 2),
             "currency": "BRL",
             "kind": "regular",
@@ -1025,7 +1096,8 @@ class PrecoDaHora(Adapter):
             "confidence": 0.9,
             "notes": f"Preço da Hora (NFC-e): {description}"[:500],
         }
-        return Item("deal", f"{venue.ref}|{serving.key}", data)
+        place = "" if on_site is None else ("|on_site" if on_site else "|takeaway")
+        return Item("deal", f"{venue.ref}|{serving.key}{place}", data)
 
     def log_summary(self) -> None:
         venues = [venue for venue in self.venues.values() if venue]

@@ -100,6 +100,14 @@
         "dobro"
       ]
     },
+    "on_site": {
+      "default": null,
+      "description": "To drink there (true) or take away (false) when it differs from the venue; null: as the venue",
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
     "price": {
       "type": "number",
       "exclusiveMinimum": 0,
@@ -280,6 +288,7 @@
     "volume_ml",
     "units",
     "packaging",
+    "on_site",
     "price",
     "currency",
     "kind",
