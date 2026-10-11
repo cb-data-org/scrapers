@@ -156,8 +156,10 @@ class ServingReader:
         )
         self.brand_by_slug = {brand.slug: brand for brand in catalog.brands}
 
-    def read(self, description: str) -> Serving:
-        """The serving a description sells, or NotAServing with the reason."""
+    def read(self, description: str, assume_bottle: bool = False) -> Serving:
+        """The serving a description sells, or NotAServing with the reason. With `assume_bottle` (a bar's
+        receipt), a named beer with neither size nor type ("HEINEKEN", "CERVEJA AMSTEL") is the 600 ml bottle
+        bars sell by default, with its volume left as assumed (None), so the price waits for review."""
         text = plain(description)
         padded = words(text)
         if _ZERO.search(padded):
@@ -200,6 +202,9 @@ class ServingReader:
             kind = TYPE_OF_BARE_VOLUME.get(volume)
             if kind is None:
                 raise NotAServing("size without a type")
+        assumed = False
+        if kind is None and assume_bottle and brand is not None:
+            kind, assumed = "garrafa", True
         if kind is None:
             raise NotAServing("no size")
         if brand is None and volume is None:
@@ -207,7 +212,7 @@ class ServingReader:
             raise NotAServing("no brand")
         if kind == "torre":
             packaging = "torre"
-        if volume is None:
+        if volume is None and not assumed:
             volume = LONG_NECK_ML.get(brand.slug) if kind == "long_neck" and brand else FIXED_VOLUME.get(kind)
 
         size = volume or getattr(self.catalog.default_volume_ml, kind, None)

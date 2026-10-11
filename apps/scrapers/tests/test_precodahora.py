@@ -845,6 +845,22 @@ def test_beer_at_bar_prices_lists_as_a_bar_price_whatever_the_shop(adapter: Prec
     assert ("cnpj:33444555000166", 9.0) in deals and ("cnpj:33444555000166", 3.5) not in deals
 
 
+def test_a_restaurant_that_writes_no_size_still_lists_at_bar_prices(adapter: PrecoDaHora) -> None:
+    store = shop("SUPERMERCADO BOM PRECO LTDA", "11222333000144", -13.0110, -38.4890)
+    butcher = shop("O BAIANO CHURRASQUEIRO", "33444555000166", -13.0100, -38.4880)
+    items = search(
+        adapter,
+        page(
+            *(sale("CERVEJA HEINEKEN 600ML", price, store) for price in (8.99, 9.49, 9.99)),
+            sale("HEINEKEN", 19.9, butcher),
+        ),
+    )
+    venues = [item.data for item in items if item.kind == "venue"]
+    deals = [item.data for item in items if item.kind == "deal"]
+    assert [venue["name"] for venue in venues] == ["O Baiano Churrasqueiro"]
+    assert [(deal["format"], deal["volume_ml"], deal["price"]) for deal in deals] == [("garrafa", None, 19.9)]
+
+
 def test_shop_category() -> None:
     assert shop_category("SUPERMERCADO X", None) == "mercado"
     assert shop_category("DISTRIBUIDORA DE BEBIDAS Y", None) == "deposito"

@@ -136,3 +136,15 @@ def test_a_beer_of_no_named_brand_sends_none() -> None:
 def test_text_forms() -> None:
     assert plain("  Cerveja  BRAHMA Lata 2,5L! ") == "cerveja brahma lata 2,5l"
     assert words("cerv.heinek l.n.") == " cerveja heineken l n "
+
+
+def test_a_bars_beer_without_a_size_is_its_600_ml_bottle_assumed() -> None:
+    """Bars write "HEINEKEN" for the bottle they sell by default (O Baiano Churrasqueiro, 11 Oct 2026)."""
+    for description in ("HEINEKEN", "CERVEJA AMSTEL"):
+        serving = READER.read(description, assume_bottle=True)
+        assert (serving.format_code, serving.volume_ml) == ("garrafa_600", None)  # None: assumed, reviewed
+    with pytest.raises(NotAServing):
+        READER.read("HEINEKEN")  # a shop's line: unread
+    with pytest.raises(NotAServing):
+        READER.read("CERVEJA PILSEN", assume_bottle=True)  # no brand, no size
+    assert READER.read("HEINEKEN LONG NECK", assume_bottle=True).format_code == "long_neck_330"

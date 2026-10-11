@@ -840,7 +840,11 @@ class PrecoDaHora(Adapter):
             return None
         serving = None
         try:
-            serving = None if takeaway else self.reader.read(description)
+            # Bars write "HEINEKEN" for their 600 ml bottle; shops' lines without a size stay unread.
+            on_site = shop.candidate or (
+                shop.company is not None and shop.category is None and not shop.retail
+            )
+            serving = None if takeaway else self.reader.read(description, assume_bottle=on_site)
         except NotAServing as error:
             self.skipped[error.reason] += 1
             takeaway = error.reason == "pack"

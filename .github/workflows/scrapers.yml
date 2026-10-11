@@ -3,7 +3,9 @@ name: Scrapers
 # Preço da Hora up to three times an hour (at most 30 searches, 20 s apart: about ten minutes; one run at a
 # time), so a round over the whole city finishes inside the site's 72-hour window, and every run also does any
 # other adapter that is due (OpenStreetMap and Overture weekly). GitHub drops many scheduled runs under load (two
-# of thirteen hourly ones ran on 10-11 Oct 2026), hence three tries an hour at odd minutes.
+# of thirteen hourly ones ran on 10-11 Oct 2026, none for seven hours on 11 Oct), so each run also starts the next
+# one NEXT_RUN_WAIT seconds after it ends (a dispatch, which GITHUB_TOKEN may trigger); the schedule only restarts
+# that chain. One run at a time (the concurrency group): a run waiting its turn replaces any older waiting one.
 # Public repository: GitHub Actions minutes are free.
 on:
   schedule:
@@ -20,6 +22,7 @@ concurrency:
 
 permissions:
   contents: read
+  actions: write
 
 jobs:
   run:
@@ -62,3 +65,11 @@ jobs:
         with:
           path: .scrapers-cache
           key: scrapers-cache-${{ github.run_id }}
+      - name: Start the next run
+        if: ${{ !cancelled() && inputs.adapters == '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NEXT_RUN_WAIT: "480"
+        run: |
+          sleep "$NEXT_RUN_WAIT"
+          gh workflow run scrapers.yml --ref "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY"
