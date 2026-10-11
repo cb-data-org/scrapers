@@ -220,6 +220,41 @@ class BarOwnerRequest(BaseModel):
     """
 
 
+class Image(RootModel[str]):
+    root: Annotated[str, Field(max_length=700000)]
+    """
+    A JPEG photo as a data URI (base64)
+    """
+
+
+class MenuPhotoUpload(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    city: Annotated[str, Field(pattern="^[a-z0-9]+(?:-[a-z0-9]+)*$")]
+    venue: Annotated[str, Field(pattern="^[a-z0-9]+(?:-[a-z0-9]+)*$")]
+    """
+    The bar's slug in that city
+    """
+    images: Annotated[list[Image], Field(max_length=3, min_length=1)]
+    contact: Annotated[str | None, Field(max_length=120, min_length=5)] = None
+    """
+    Phone or email, only to ask about these prices; deleted after 90 days
+    """
+    is_owner: bool | None = None
+    """
+    Sent by the bar's owner or manager
+    """
+    consent: bool | None = None
+    """
+    LGPD consent: required with a contact
+    """
+    turnstile: Annotated[str, Field(max_length=2048, min_length=1)]
+    """
+    Cloudflare Turnstile token
+    """
+
+
 class DealConfirm(BaseModel):
     model_config = ConfigDict(
         extra="forbid",

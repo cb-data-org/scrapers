@@ -10,7 +10,7 @@ on:
       probe:
         description: Which check
         type: choice
-        options: [venues, pdh-api, pdh-search, bars, menus, platforms, instagram, handles]
+        options: [venues, pdh-api, pdh-search, bars, menus, platforms, instagram, handles, vision]
         default: venues
 
 permissions:
@@ -63,8 +63,17 @@ jobs:
         run: |
           uvx overturemaps download --bbox=-38.478,-13.016,-38.440,-12.982 -f geojsonseq --type=place -o "$RUNNER_TEMP/pituba.geojsonseq"
           uv run python -m cb_scrapers.handle_finder --overture "$RUNNER_TEMP/pituba.geojsonseq" --out "$RUNNER_TEMP/probe"
+      - name: Free vision models on bars' Instagram images
+        if: inputs.probe == 'vision'
+        env:
+          CB_META_TOKEN: ${{ secrets.CB_META_TOKEN }}
+          CB_IG_USER_ID: ${{ vars.CB_IG_USER_ID }}
+          CB_GEMINI_KEY: ${{ secrets.CB_GEMINI_KEY }}
+          CB_CF_AI_TOKEN: ${{ secrets.CB_CF_AI_TOKEN }}
+          CB_CF_ACCOUNT_ID: ${{ vars.CB_CF_ACCOUNT_ID }}
+        run: uv run python -m cb_scrapers.vision_compare --out "$RUNNER_TEMP/probe"
       - name: Probe
-        if: inputs.probe != 'bars' && inputs.probe != 'menus' && inputs.probe != 'platforms' && inputs.probe != 'instagram' && inputs.probe != 'handles'
+        if: inputs.probe != 'bars' && inputs.probe != 'menus' && inputs.probe != 'platforms' && inputs.probe != 'instagram' && inputs.probe != 'handles' && inputs.probe != 'vision'
         run: uv run python -m cb_scrapers.source_probe "${{ inputs.probe }}" --overture "$RUNNER_TEMP/places.geojsonseq" --out "$RUNNER_TEMP/probe"
       - name: Bars on the receipts
         if: inputs.probe == 'bars'
