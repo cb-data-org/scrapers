@@ -866,3 +866,99 @@ def test_shop_category() -> None:
     assert shop_category("DISTRIBUIDORA DE BEBIDAS Y", None) == "deposito"
     assert shop_category("LOJA Z", 4723700) == "deposito"
     assert shop_category("FARMACIA W", None) is None
+
+
+# Barcodes (owner, 11 Oct 2026): the same code in every shop, however each writes the product.
+
+CAN = "7896045506880"  # Heineken 350 ml can
+
+
+def test_a_barcode_learns_its_beer_and_reads_lines_that_dont_say(adapter: PrecoDaHora) -> None:
+    adapter.stores = True
+    store = shop("SUPERMERCADO BOM PRECO LTDA", "11222333000144", -13.0110, -38.4890)
+    items = search(
+        adapter,
+        page(
+            sale("CERVEJA HEINEKEN LT 350ML", 4.99, store, gtin=CAN),
+            sale("CERV LT HEINEKEN 350", 5.19, store, gtin=CAN),
+            # Neither says the size: the barcode does.
+            sale("CERV HEINEKEN SLEEK", 5.29, store, gtin=CAN),
+            sale("CERV HEINEKEN SLEEK", 5.29, store, gtin="SEM GTIN"),
+        ),
+        key="chopp @ rio-vermelho cheap",
+    )
+    deals = [item.data for item in items if item.kind == "deal"]
+    assert sorted((deal["price"], deal["format"], deal["volume_ml"]) for deal in deals) == [
+        (4.99, "lata", 350),
+        (5.19, "lata", 350),
+        (5.29, "lata", 350),
+    ]
+    assert adapter.skipped["read by its barcode"] == 1
+    assert adapter.gtins.searchable() == [CAN]
+
+
+def test_a_barcode_needs_agreement_before_it_reads_anything(tmp_path: Path) -> None:
+    book = precodahora.GtinBook(tmp_path / "gtins.json")
+    reader = precodahora.ServingReader(committed_catalog())
+    book.vote(CAN, reader.read("HEINEKEN LATA 350ML"))
+    assert book.serving(CAN, committed_catalog()) is None  # one sale isn't enough
+    book.vote(CAN, reader.read("HEINEKEN LATA 350ML"))
+    book.vote(CAN, reader.read("HEINEKEN LONG NECK 330ML"))
+    assert book.serving(CAN, committed_catalog()) is None  # two of three don't agree enough
+    book.vote(CAN, reader.read("HEINEKEN LATA 350ML"))
+    book.vote(CAN, reader.read("HEINEKEN LATA 350ML"))
+    assert book.serving(CAN, committed_catalog()).format_code == "lata_350"
+    book.save()
+    assert precodahora.GtinBook(tmp_path / "gtins.json").searchable() == [CAN]
+
+
+def test_barcode_searches_start_city_wide_and_read_every_page(
+    polite: Callable[..., PoliteClient], plan: Callable[..., None]
+) -> None:
+    plan(())
+    precodahora.PLACES.update(precodahora.WIDE)
+    precodahora.PLACES.update(precodahora.QUARTERS)
+    adapter_site = site(
+        answer=lambda request: httpx.Response(
+            200,
+            json={
+                "totalRegistros": 260 if form(request)["raio"] == "25" else 70,
+                "totalPaginas": 4 if form(request)["raio"] == "25" else 3,
+                "resultado": [],
+            },
+        )
+    )
+    adapter = offline(polite, adapter_site)
+    adapter.gtins.votes[CAN] = precodahora.Counter({"heineken||lata_350": 5})
+    keys = run_tasks(adapter)
+    # Over the cap across both cities: the four quarters, each read to its last page (shops' sales too).
+    assert keys[:2] == ["osm", f"{CAN} @ wide p1"]
+    assert keys[2:5] == [f"{CAN} @ wide-sw p1", f"{CAN} @ wide-sw p2", f"{CAN} @ wide-sw p3"]
+    assert len(keys) == 2 + 4 * 3
+
+
+def test_the_quarters_share_out_the_2km_circles() -> None:
+    assert set(precodahora.children("wide")) == set(precodahora.QUARTERS)
+    owned = [name for quarter in precodahora.QUARTERS for name in precodahora.children(quarter)]
+    two_km = [name for name, c in {**precodahora.MVP, **precodahora.GRID}.items() if c[2] == 2]
+    assert sorted(owned) == sorted(two_km)  # every 2 km circle in exactly one quarter
+
+
+def test_a_word_still_over_both_ends_is_narrowed_while_that_helps(
+    polite: Callable[..., PoliteClient], plan: Callable[..., None]
+) -> None:
+    plan(("heineken",), mvp=("pituba",))
+    precodahora.PLACES["pituba"] = (-12.99928, -38.46068, 1)
+
+    def answer(request: httpx.Response) -> httpx.Response:
+        term = form(request)["termo"]
+        total = 316 if term == "heineken" else 316 if term == "heineken long neck" else 60
+        return httpx.Response(200, json={"totalRegistros": total, "totalPaginas": 4, "resultado": []})
+
+    adapter = offline(polite, site(answer=answer))
+    keys = run_tasks(adapter)
+    assert "heineken lata @ pituba p1" in keys
+    # "long neck" didn't narrow it: the remaining narrower words are dropped.
+    assert "heineken long neck @ pituba p1" in keys
+    assert not any(key.startswith(("heineken 600", "heineken garrafa", "heineken chopp")) for key in keys)
+    assert adapter.skipped["search: a narrower word didn't narrow"] == 1

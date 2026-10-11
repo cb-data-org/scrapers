@@ -211,7 +211,29 @@ GRID = {
     "grid-49": (-12.75987, -38.52546, 2),
 }
 CITY.update(GRID)
-PLACES = {**MVP, **{name: circle for circles in SMALLER.values() for name, circle in circles.items()}, **CITY}
+#: Barcode searches start wide (owner, 11 Oct 2026: every price, each search under the cap): one product
+#: across both cities fits under 100 sales more often than not; a crowded one goes to the city's quarters,
+#: then to the 2 km circles in each quarter, then to their 1 km circles (children()).
+WIDE = {"wide": (-12.915, -38.45, 25)}
+QUARTERS = {
+    "wide-sw": (-12.985, -38.50, 12),
+    "wide-se": (-12.965, -38.38, 12),
+    "wide-nw": (-12.84, -38.50, 12),
+    "wide-ne": (-12.87, -38.33, 12),
+}
+PLACES = {
+    **MVP,
+    **{name: circle for circles in SMALLER.values() for name, circle in circles.items()},
+    **CITY,
+    **WIDE,
+    **QUARTERS,
+}
+#: When a word still sells more than both ends of a 1 km circle show (200), it is searched again with these
+#: added ("heineken lata"), as long as that narrows the search; a beer's barcode searches cover the rest.
+NARROWER = ("lata", "long neck", "600", "garrafa", "chopp")
+#: The barcode catalogue (what each code sells, learnt from the receipts) and how many codes a round searches.
+GTIN_FILE = "precodahora-gtins.json"
+GTIN_SEARCHES = 120
 #: Search terms, best sellers first. Not "skol" or "itaipava" (no bar sold them in a week of receipts around
 #: the MVP, only shops) nor "antarctica" (mostly Guaraná Antarctica). "original" matches other products too,
 #: but in 1 km circles the bars' Original 600 ml shows.
@@ -380,6 +402,14 @@ def children(place: str) -> dict[str, tuple[float, float, int]]:
     centre and six around it ("grid-5/0" … "grid-5/6"). None for a 1 km circle: the site takes whole km."""
     if place in SMALLER:
         return SMALLER[place]
+    if place in WIDE:
+        return dict(QUARTERS)
+    if place in QUARTERS:
+        # The 2 km circles nearest this quarter (each in one quarter only).
+        def nearest(lat: float, lng: float) -> str:
+            return min(QUARTERS, key=lambda q: (QUARTERS[q][0] - lat) ** 2 + (QUARTERS[q][1] - lng) ** 2)
+
+        return {name: c for name, c in {**MVP, **GRID}.items() if c[2] == 2 and nearest(c[0], c[1]) == place}
     found = PLACES.get(place)
     if found is None or found[2] < 2:
         return {}
@@ -432,6 +462,78 @@ class Density:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         saved = {"started": self.started.isoformat(), "cells": self.cells}
         self.path.write_text(json.dumps(saved, ensure_ascii=False), "utf-8")
+
+
+def gtin_of(product: dict[str, Any]) -> str | None:
+    """A sale's barcode (GTIN/EAN, 8 to 14 digits), or None ("SEM GTIN", internal codes)."""
+    code = re.sub(r"\D", "", str(product.get("gtin") or ""))
+    return code if 8 <= len(code) <= 14 and code.strip("0") else None
+
+
+class GtinBook:
+    """What each barcode sells, learnt from receipts whose description reads clearly ("CERV HEINEKEN LT
+    350ML"): a manufacturer's code is the same in every shop, however each shop writes the product (owner,
+    11 Oct 2026).
+    A code reads as its serving once two sales agree and three in four do."""
+
+    def __init__(self, path: Path | None) -> None:
+        self.path = path
+        self.votes: dict[str, Counter[str]] = {}
+        try:
+            saved = json.loads(path.read_text("utf-8")) if path else {}
+            self.votes = {code: Counter(keys) for code, keys in saved.items()}
+        except (OSError, ValueError, TypeError, AttributeError):
+            self.votes = {}
+
+    @staticmethod
+    def key(serving: Serving) -> str | None:
+        if serving.brand is None or serving.units != 1 or serving.packaging != "single":
+            return None
+        return f"{serving.brand.slug}|{serving.beer.slug if serving.beer else ''}|{serving.format_code}"
+
+    def vote(self, code: str, serving: Serving) -> None:
+        key = self.key(serving)
+        if key:
+            self.votes.setdefault(code, Counter())[key] += 1
+
+    def majority(self, code: str) -> str | None:
+        votes = self.votes.get(code)
+        if not votes:
+            return None
+        key, count = votes.most_common(1)[0]
+        return key if count >= 2 and count >= 0.75 * sum(votes.values()) else None
+
+    def serving(self, code: str, catalog: Any) -> Serving | None:
+        """The serving a code sells, rebuilt from the catalog, or None when not known well enough."""
+        key = self.majority(code)
+        if key is None or catalog is None:
+            return None
+        brand_slug, beer_slug, format_code = key.split("|")
+        brand = next((b for b in catalog.brands if b.slug == brand_slug), None)
+        beer = next((b for b in catalog.beers if b.slug == beer_slug), None) if beer_slug else None
+        fmt = next((f for f in catalog.formats if f.code == format_code), None)
+        if brand is None or fmt is None or (beer_slug and beer is None):
+            return None
+        return Serving(
+            brand,
+            brand.aliases[0],
+            beer,
+            beer.aliases[0] if beer else None,
+            fmt.type,
+            fmt.code,
+            fmt.volume_ml,
+        )
+
+    def searchable(self, limit: int = GTIN_SEARCHES) -> list[str]:
+        """The codes worth a search of their own: known, most sold first."""
+        known = [code for code in self.votes if self.majority(code)]
+        return sorted(known, key=lambda code: -sum(self.votes[code].values()))[:limit]
+
+    def save(self) -> None:
+        if self.path is None:
+            return
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.path.write_text(json.dumps({c: dict(v) for c, v in self.votes.items()}), "utf-8")
 
 
 def serving_key(serving: Serving) -> str:
@@ -491,6 +593,9 @@ class PrecoDaHora(Adapter):
         self.shop_prices = ShopPrices(cache_dir() / SHOP_PRICES_FILE)
         self.book = ShopBook(cache_dir() / SHOP_BOOK_FILE)
         self.density = Density(cache_dir() / DENSITY_FILE, self.now.date())
+        self.gtins = GtinBook(cache_dir() / GTIN_FILE)
+        #: Narrower words tried for a crowded search, by the search they narrow: (term, place) → its total.
+        self.narrowing: dict[tuple[str, str], int] = {}
         #: Sales still out of reach after both ends of a 1 km circle, by search.
         self.capped: dict[tuple[str, str], int] = {}
         self.searches = 0
@@ -536,10 +641,12 @@ class PrecoDaHora(Adapter):
                     self.skipped["search: nothing sold there lately"] += 1
                     queue.pop(0)
                     continue
+                barcode = term.isdigit()
+                parent = self.narrowing.get((term, place))
                 # Shops' single beers come last in the dearest-first pages: one cheapest-first page for them.
-                if self.stores:
+                if self.stores and not barcode:
                     yield self.search_task(term, place, 1, cheapest=True)
-                split = False
+                split = useless = False
                 for page in range(1, MAX_PAGES + 1):
                     if self.searches >= MAX_SEARCHES:
                         log.info("%d searches done; %d jobs wait for the next runs", MAX_SEARCHES, len(queue))
@@ -553,8 +660,20 @@ class PrecoDaHora(Adapter):
                             queue[1:1] = [(term, child) for child in smaller]
                             split = True
                             break
-                    if self.last_page(term, place, page):
+                        if parent is not None and total >= parent:
+                            # A word added didn't narrow it (the site matches any word): no more such tries.
+                            self.skipped["search: a narrower word didn't narrow"] += 1
+                            queue[1:] = [job for job in queue[1:] if job not in self.narrowing]
+                            useless = True
+                            break
+                    # Every page of a barcode (shops' sales too); words stop once the bars are behind.
+                    if page >= self.pages.get((term, place), 0) or (
+                        not barcode and self.last_page(term, place, page)
+                    ):
                         break
+                if useless:
+                    queue.pop(0)
+                    continue
                 total = self.totals.get((term, place), 0)
                 if not split and total > CAP:
                     # Over the cap in a 1 km circle: what the dearest-first pages missed, cheapest first.
@@ -565,21 +684,31 @@ class PrecoDaHora(Adapter):
                             return
                         yield self.search_task(term, place, page, cheapest=True)
                     if total > 2 * CAP:
-                        self.capped[(term, place)] = total - 2 * CAP
+                        if term.isdigit() or parent is not None:
+                            self.capped[(term, place)] = total - 2 * CAP
+                        else:
+                            # Still over both ends: the word narrowed, next (barcodes cover the shops).
+                            narrower = [(f"{term} {word}", place) for word in NARROWER if word not in term]
+                            for job in narrower:
+                                self.narrowing[job] = total
+                            queue[1:1] = narrower
                 queue.pop(0)
         finally:
             self.save_queue(queue)
             self.density.save()
+            self.gtins.save()
             self.shop_prices.save()
             self.book.save()
             self.log_summary()
 
-    @staticmethod
-    def first_queue() -> list[tuple[str, str]]:
-        """A round: the terms around the MVP but the sweep's, then the city's terms around the city."""
-        return [(term, place) for term in TERMS for place in MVP if not sweep_job(term, place)] + [
-            (term, place) for term in CITY_TERMS for place in CITY
-        ]
+    def first_queue(self) -> list[tuple[str, str]]:
+        """A round: the terms around the MVP but the sweep's, the city's terms around the city, then each
+        known barcode across both cities (split while over the cap)."""
+        return (
+            [(term, place) for term in TERMS for place in MVP if not sweep_job(term, place)]
+            + [(term, place) for term in CITY_TERMS for place in CITY]
+            + [(code, "wide") for code in self.gtins.searchable()]
+        )
 
     def load_queue(self) -> list[tuple[str, str]]:
         """The searches left from the last runs, without terms or circles dropped since. Terms added since
@@ -588,7 +717,11 @@ class PrecoDaHora(Adapter):
         terms = set(TERMS) | set(CITY_TERMS)
         try:
             saved = json.loads(self.queue_file.read_text("utf-8"))
-            jobs = [(term, place) for term, place in saved["jobs"] if term in terms and circle(place)]
+            jobs = [
+                (term, place)
+                for term, place in saved["jobs"]
+                if (term in terms or term.isdigit()) and circle(place)
+            ]
             # Rounds saved before they kept their terms (6 Oct 2026) had every term but the last two.
             planned = saved.get("terms", TERMS[:-2])
             planned_city = saved.get("city_terms", CITY_TERMS)
@@ -839,17 +972,30 @@ class PrecoDaHora(Adapter):
             self.skipped["no price"] += 1
             return None
         serving = None
+        code = gtin_of(product)
         try:
             # Bars write "HEINEKEN" for their 600 ml bottle; shops' lines without a size stay unread.
             on_site = shop.candidate or (
                 shop.company is not None and shop.category is None and not shop.retail
             )
             serving = None if takeaway else self.reader.read(description, assume_bottle=on_site)
+            if serving is not None and code and serving.volume_ml is not None:
+                self.gtins.vote(code, serving)
         except NotAServing as error:
-            self.skipped[error.reason] += 1
-            takeaway = error.reason == "pack"
-            if error.reason in ("no brand", "no size", "size without a type", "size not in the catalog"):
-                self.unread[description] += 1
+            unread = error.reason in ("no brand", "no size", "size without a type", "size not in the catalog")
+            known = self.gtins.serving(code, self.catalog) if code and unread else None
+            if known is not None:
+                # The text doesn't say, the barcode does ("CERV HEINEKEN SLEEK" is the 350 ml can).
+                serving = known
+                self.skipped["read by its barcode"] += 1
+            else:
+                self.skipped[error.reason] += 1
+                takeaway = error.reason == "pack"
+                if unread:
+                    self.unread[description] += 1
+        if serving is not None and serving.volume_ml is None and code and not takeaway:
+            # An assumed size (a bar's "HEINEKEN") gives way to what its barcode says.
+            serving = self.gtins.serving(code, self.catalog) or serving
         if takeaway:
             if shop.candidate:
                 fields = ("cod_nfce", "descricao", "data", "precoUnitario")
