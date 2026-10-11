@@ -21,15 +21,46 @@ import httpx
 
 from .cnpj import CnpjRegister, default_cache_file
 from .core import BlockedError, DisallowedError, PoliteClient, normalize
+from .matching import distance_m
 
 log = logging.getLogger(__name__)
 
 BASE = "https://precodahora.ba.gov.br"
 URL = f"{BASE}/produtos/"
-#: Pituba and its nightlife streets (where Ponte Aérea, La Bottega, Bar Preto and Bar Piauí are on the map).
-PLACE = (-13.0010, -38.4600, 2)
-TERMS = ("chopp", "heineken", "brahma", "original", "ipa", "stella", "amstel", "spaten")
+#: Pituba's nightlife streets, 1 km wide (the site's smallest), around the bars below.
+PLACE = (-12.9990, -38.4590, 1)
+#: Generic words first, so a bar shows whatever brand it sells.
+TERMS = (
+    "cerveja",
+    "chopp",
+    "chope",
+    "heineken",
+    "brahma",
+    "stella",
+    "budweiser",
+    "corona",
+    "amstel",
+    "spaten",
+    "original",
+    "eisenbahn",
+    "patagonia",
+    "michelob",
+    "devassa",
+    "imperio",
+)
+#: The site shows at most 4 pages (100 sales) a search, dearest first; the cheapest-first order shows the rest
+#: when a search has more.
 PAGES = 4
+#: The bars on our map (owner, 11 Oct 2026), to find on receipts by where the shop is, whatever its name.
+TARGETS = {
+    "Ponte Aérea": (-13.003996, -38.456766),
+    "La Bottega": (-13.002969, -38.457814),
+    "Zaccaria": (-12.993547, -38.455438),
+    "Bar Preto": (-12.991626, -38.460708),
+    "SP20 (R. São Paulo, 20)": (-13.0040, -38.4590),
+    "Bar Piauí (control)": (-13.006676, -38.464122),
+}
+NEAR_M = 150.0
 WANTED = (
     "bunker",
     "preto",
@@ -48,6 +79,7 @@ def main(argv: list[str] | None = None) -> int:
     args = argv if argv is not None else sys.argv[1:]
     out = Path(args[args.index("--out") + 1]) if "--out" in args else None
     shops: dict[str, dict[str, Any]] = {}
+    searched: list[str] = []
     status = "ok"
     with PoliteClient(delay=20.0, retries=1, timeout=30) as client:
         try:
@@ -63,31 +95,51 @@ def main(argv: list[str] | None = None) -> int:
             }
             lat, lng, radius = PLACE
             for term in TERMS:
-                for number in range(1, PAGES + 1):
-                    data = {
-                        "termo": term,
-                        "horas": 72,
-                        "latitude": lat,
-                        "longitude": lng,
-                        "raio": radius,
-                        "pagina": number,
-                        "ordenar": "preco.desc",
-                    }
-                    answer = client.post(URL, data=data, headers=headers, retries=0).json()
-                    rows = answer.get("resultado") if isinstance(answer, dict) else None
-                    if not rows:
-                        break
-                    for row in rows:
-                        shop, product = row.get("estabelecimento") or {}, row.get("produto") or {}
-                        cnpj = re.sub(r"\D", "", str(shop.get("cnpj") or ""))
-                        entry = shops.setdefault(
-                            cnpj, {"receipt": shop.get("nomeEstabelecimento"), "terms": set(), "sales": 0}
-                        )
-                        entry["terms"].add(term)
-                        entry["sales"] += 1
-                        entry.setdefault("sample", product.get("descricao"))
-                    if number >= int(answer.get("totalPaginas") or 0):
-                        break
+                total = 0
+                for order in ("preco.desc", "preco.asc"):
+                    # Cheapest first only for what the dearest-first pages couldn't show.
+                    pages = PAGES if order == "preco.desc" else min(PAGES, -(-(total - PAGES * 25) // 25))
+                    for number in range(1, pages + 1):
+                        data = {
+                            "termo": term,
+                            "horas": 72,
+                            "latitude": lat,
+                            "longitude": lng,
+                            "raio": radius,
+                            "pagina": number,
+                            "ordenar": order,
+                        }
+                        answer = client.post(URL, data=data, headers=headers, retries=0).json()
+                        rows = answer.get("resultado") if isinstance(answer, dict) else None
+                        if not rows:
+                            break
+                        total = int(answer.get("totalRegistros") or 0)
+                        searched.append(f"{term} {order} p{number}: {total}")
+                        for row in rows:
+                            shop, product = row.get("estabelecimento") or {}, row.get("produto") or {}
+                            cnpj = re.sub(r"\D", "", str(shop.get("cnpj") or ""))
+                            entry = shops.setdefault(
+                                cnpj,
+                                {
+                                    "receipt": shop.get("nomeEstabelecimento"),
+                                    "terms": set(),
+                                    "sales": 0,
+                                    "lat": shop.get("latitude"),
+                                    "lng": shop.get("longitude"),
+                                    "address": " ".join(
+                                        str(shop.get(key) or "") for key in ("endLogradouro", "endNumero")
+                                    ).strip(),
+                                    "samples": [],
+                                },
+                            )
+                            entry["terms"].add(term)
+                            entry["sales"] += 1
+                            if len(entry["samples"]) < 4:
+                                entry["samples"].append(
+                                    f"{product.get('descricao')} R$ {product.get('precoUnitario')}"
+                                )
+                        if number >= int(answer.get("totalPaginas") or 0):
+                            break
         except (BlockedError, DisallowedError, httpx.HTTPError) as error:
             status = f"stopped: {error}"[:200]
     # The register at its own, quicker pace (as the adapter looks it up), not Preço da Hora's 20 s.
@@ -105,7 +157,7 @@ def main(argv: list[str] | None = None) -> int:
                 "cnae": entry["cnae"],
                 "sales": entry["sales"],
                 "terms": sorted(entry["terms"]),
-                "sample": entry["sample"],
+                "sample": "; ".join(entry["samples"]),
             }
             for entry in shops.values()
             if normalize(wanted) in normalize(f"{entry['receipt']} {entry['trade'] or ''}")
@@ -114,7 +166,7 @@ def main(argv: list[str] | None = None) -> int:
     }
     lines = [
         "# Bar finder",
-        f"Status: {status}. {len(shops)} shops sold beer around Pituba (2 km, last 72 h)."
+        f"Status: {status}. {len(shops)} shops sold beer around Pituba (1 km, last 72 h)."
         f" Terms: {', '.join(TERMS)}.",
         "",
     ]
@@ -130,6 +182,32 @@ def main(argv: list[str] | None = None) -> int:
                 or "not on these receipts"
             )
         )
+    lines += ["", "## Shops on receipts near each bar (by place, any name)"]
+    for label, (lat, lng) in TARGETS.items():
+        near = sorted(
+            (
+                (distance_m(lat, lng, float(entry["lat"]), float(entry["lng"])), entry)
+                for entry in shops.values()
+                if entry.get("lat") not in (None, "") and entry.get("lng") not in (None, "")
+            ),
+            key=lambda pair: pair[0],
+        )
+        close = [(metres, entry) for metres, entry in near if metres <= NEAR_M]
+        lines.append(
+            f"- **{label}**: "
+            + (
+                "; ".join(
+                    f"{entry['trade'] or entry['receipt']} ({round(metres)} m, CNAE {entry['cnae']}, "
+                    f"{entry['address']}, {entry['sales']} sales: {'; '.join(entry['samples'])})"
+                    for metres, entry in close
+                )
+                or (
+                    f"nothing within {round(NEAR_M)} m; nearest: "
+                    + ", ".join(f"{e['trade'] or e['receipt']} {round(m)} m" for m, e in near[:3])
+                )
+            )
+        )
+    lines += ["", "Searches (total sales each): " + " · ".join(searched)]
     bars = sorted(
         (entry["trade"] or entry["receipt"] or "?")
         for entry in shops.values()
