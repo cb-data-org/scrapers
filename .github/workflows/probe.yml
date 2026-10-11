@@ -1,0 +1,48 @@
+name: Source probe (manual)
+
+# One-off, read-only checks of data sources (cb_scrapers.source_probe): venues compares OpenStreetMap with
+# Overture Maps for well-known bars; pdh-api tries Preço da Hora's search with more per page; bars looks for
+# them on Preço da Hora's receipts (cb_scrapers.bar_finder).
+
+on:
+  workflow_dispatch:
+    inputs:
+      probe:
+        description: Which check
+        type: choice
+        options: [venues, pdh-api, bars]
+        default: venues
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    defaults:
+      run:
+        working-directory: apps/scrapers
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          working-directory: apps/scrapers
+          enable-cache: true
+      - run: uv sync --locked --no-dev
+      - name: Overture places for Salvador and Lauro de Freitas
+        if: inputs.probe == 'venues'
+        run: uvx overturemaps download --bbox=-38.70,-13.02,-38.25,-12.80 -f geojsonseq --type=place -o "$RUNNER_TEMP/places.geojsonseq"
+      - name: Probe
+        if: inputs.probe != 'bars'
+        run: uv run python -m cb_scrapers.source_probe "${{ inputs.probe }}" --overture "$RUNNER_TEMP/places.geojsonseq" --out "$RUNNER_TEMP/probe"
+      - name: Bars on the receipts
+        if: inputs.probe == 'bars'
+        run: uv run python -m cb_scrapers.bar_finder --out "$RUNNER_TEMP/probe"
+      - run: cat "$RUNNER_TEMP/probe/report.md" >> "$GITHUB_STEP_SUMMARY"
+        if: always()
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: source-probe
+          path: ${{ runner.temp }}/probe

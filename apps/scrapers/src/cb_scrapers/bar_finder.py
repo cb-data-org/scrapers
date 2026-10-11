@@ -90,7 +90,9 @@ def main(argv: list[str] | None = None) -> int:
                         break
         except (BlockedError, DisallowedError, httpx.HTTPError) as error:
             status = f"stopped: {error}"[:200]
-        register = CnpjRegister(client, default_cache_file(), date.today())
+    # The register at its own, quicker pace (as the adapter looks it up), not Preço da Hora's 20 s.
+    with PoliteClient(delay=3.0, retries=1, timeout=30) as lookups:
+        register = CnpjRegister(lookups, default_cache_file(), date.today())
         for cnpj, entry in shops.items():
             company = register.lookup(cnpj) if len(cnpj) == 14 else None
             entry["trade"] = company.trade_name if company else None

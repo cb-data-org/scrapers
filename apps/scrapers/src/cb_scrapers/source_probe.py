@@ -1,0 +1,256 @@
+"""Two one-off, read-only checks (owner, 11 Oct 2026), run by hand from GitHub Actions (never from anyone's
+own connection):
+
+- `venues`: are well-known Salvador bars in OpenStreetMap, and in Overture Maps' places (open data, CDLA
+  Permissive 2.0, built from Meta, Microsoft and other sources)? The Overture file is downloaded beforehand by
+  the workflow (`overturemaps download --type=place`) and passed with --overture.
+- `pdh-api`: can Preço da Hora's search return more per page? Its page script is read for the parameters it
+  sends, then one search is tried with each likely page-size parameter, a wider radius and more hours.
+
+    uv run python -m cb_scrapers.source_probe venues --overture places.geojsonseq --out DIR
+    uv run python -m cb_scrapers.source_probe pdh-api --out DIR
+
+Same manners as the adapters: robots.txt obeyed, our bot's user agent, 20 s between Preço da Hora calls, and a
+stop at the first 403/429 or CAPTCHA.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import re
+import sys
+from collections import Counter
+from pathlib import Path
+from typing import Any
+from urllib.parse import urljoin
+
+import httpx
+
+from .core import BlockedError, DisallowedError, PoliteClient, normalize
+
+log = logging.getLogger(__name__)
+
+#: Salvador and Lauro de Freitas (south, west, north, east).
+BBOX = (-13.02, -38.70, -12.80, -38.25)
+WANTED = {
+    "The Bunker": r"bunker",
+    "Preto": r"\bpreto\b",
+    "Zaccaria": r"zac+aria",
+    "La Bottega": r"bottega",
+    "Ponte Aérea": r"ponte aerea",
+    "Baiano Churrasqueiro": r"baiano churrasqueiro|churrasqueiro",
+    "Bar Piauí": r"piaui",
+    "SP20": r"\bsp ?20\b",
+}
+OVERPASS = "https://overpass-api.de/api/interpreter"
+#: What Overture calls a place to drink (categories.primary or basic_category).
+DRINK = re.compile(r"bar|pub|brew|beer|boteco|tavern|lounge|night_?club|gastropub")
+
+PDH = "https://precodahora.ba.gov.br"
+PDH_SEARCH = f"{PDH}/produtos/"
+#: A busy spot (Rio Vermelho) and a common beer, so a full page is likely.
+PDH_BASE = {
+    "termo": "heineken",
+    "horas": 72,
+    "latitude": -13.0105,
+    "longitude": -38.4855,
+    "raio": 2,
+    "pagina": 1,
+    "ordenar": "preco.asc",
+}
+PAGE_SIZE_NAMES = (
+    "quantidade",
+    "qtd",
+    "limite",
+    "limit",
+    "tamanho",
+    "itensPorPagina",
+    "porPagina",
+    "por_pagina",
+    "registros",
+    "size",
+    "per_page",
+    "page_size",
+)
+
+
+def matches(name: str) -> list[str]:
+    plain = normalize(name)
+    return [label for label, pattern in WANTED.items() if re.search(pattern, plain)]
+
+
+def osm_places(client: PoliteClient) -> list[dict[str, Any]]:
+    south, west, north, east = BBOX
+    # Overpass matches case but not accents: "." stands in for an accented letter.
+    pattern = "bunker|preto|zac+aria|bottega|ponte a.rea|churrasqueiro|piau.|sp ?20"
+    query = (
+        f'[out:json][timeout:90];nwr["name"~"{pattern}",i]({south},{west},{north},{east});out tags center;'
+    )
+    answer = client.post(OVERPASS, data={"data": query}).json()
+    return [
+        {
+            "name": element["tags"].get("name"),
+            "tags": element["tags"],
+            "id": f"{element['type']}/{element['id']}",
+        }
+        for element in answer.get("elements", [])
+    ]
+
+
+def osm_bar_count(client: PoliteClient) -> int:
+    south, west, north, east = BBOX
+    box = f"({south},{west},{north},{east})"
+    query = f'[out:json][timeout:90];nwr["amenity"~"^(bar|pub|biergarten)$"]{box};out count;'
+    answer = client.post(OVERPASS, data={"data": query}).json()
+    tags = (answer.get("elements") or [{}])[0].get("tags", {})
+    return int(tags.get("total") or 0)
+
+
+def overture_places(path: Path) -> tuple[list[dict[str, Any]], Counter[str], int]:
+    """The wanted bars, the drinking places' categories, and how many places in all."""
+    hits: list[dict[str, Any]] = []
+    drink: Counter[str] = Counter()
+    total = 0
+    with path.open(encoding="utf-8") as lines:
+        for line in lines:
+            line = line.strip().lstrip("\x1e")
+            if not line:
+                continue
+            feature = json.loads(line)
+            props = feature.get("properties", feature)
+            total += 1
+            names = props.get("names") or {}
+            name = names.get("primary") if isinstance(names, dict) else None
+            categories = props.get("categories") or {}
+            category = (categories.get("primary") if isinstance(categories, dict) else None) or props.get(
+                "basic_category"
+            )
+            if category and DRINK.search(str(category)):
+                drink[str(category)] += 1
+            if name and matches(name):
+                hits.append(
+                    {
+                        "name": name,
+                        "category": category,
+                        "confidence": props.get("confidence"),
+                        "sources": sorted({s.get("dataset") for s in props.get("sources") or []} - {None}),
+                        "address": ((props.get("addresses") or [{}])[0] or {}).get("freeform"),
+                        "wanted": matches(name),
+                    }
+                )
+    return hits, drink, total
+
+
+def venues(args: list[str]) -> list[str]:
+    overture = Path(args[args.index("--overture") + 1]) if "--overture" in args else None
+    lines = ["# Venue sources: OpenStreetMap vs Overture Maps", ""]
+    with PoliteClient(delay=5.0, retries=1, timeout=120) as client:
+        try:
+            osm = osm_places(client)
+            bars = osm_bar_count(client)
+            lines.append(f"OpenStreetMap: {bars} bars/pubs (amenity) in Salvador + Lauro de Freitas.")
+            for label in WANTED:
+                found = [p for p in osm if label in matches(p["name"] or "")]
+                lines.append(
+                    f"- OSM **{label}**: "
+                    + (
+                        "; ".join(
+                            f"{p['name']} ({p['tags'].get('amenity') or p['tags'].get('shop') or '?'})"
+                            for p in found
+                        )
+                        or "not found"
+                    )
+                )
+        except (BlockedError, DisallowedError, httpx.HTTPError, ValueError) as error:
+            lines.append(f"OpenStreetMap: stopped ({error})"[:200])
+    lines.append("")
+    if overture and overture.exists():
+        hits, drink, total = overture_places(overture)
+        lines.append(
+            f"Overture Maps: {total} places in the box; {sum(drink.values())} drinking places "
+            f"({', '.join(f'{c} {n}' for c, n in drink.most_common(8))})."
+        )
+        for label in WANTED:
+            found = [hit for hit in hits if label in hit["wanted"]]
+            lines.append(
+                f"- Overture **{label}**: "
+                + (
+                    "; ".join(
+                        f"{h['name']} ({h['category']}, conf {h['confidence']}, {'/'.join(h['sources'])}"
+                        f"{', ' + h['address'] if h['address'] else ''})"
+                        for h in found[:4]
+                    )
+                    or "not found"
+                )
+            )
+    else:
+        lines.append("Overture Maps: no file.")
+    return lines
+
+
+def pdh_api(args: list[str]) -> list[str]:
+    lines = ["# Preço da Hora: can a search return more?", ""]
+    with PoliteClient(delay=20.0, retries=0, timeout=30) as client:
+        try:
+            page = client.get(PDH_SEARCH)
+            token = re.search(r'id="validate"\s+data-id="([^"]+)"', page.text)
+            if re.search(r'id="rc"\s+data-id="[^"]+"', page.text) or not token:
+                raise BlockedError(PDH_SEARCH, "CAPTCHA or no CSRF token")
+            # What the page's own scripts send.
+            scripts = [
+                urljoin(PDH_SEARCH, src)
+                for src in re.findall(r'<script[^>]+src="([^"]+)"', page.text)
+                if "precodahora" in urljoin(PDH_SEARCH, src) and not re.search(r"jquery|bootstrap|maps", src)
+            ]
+            lines.append(f"Page scripts: {', '.join(scripts) or 'none'}")
+            for script in scripts[:4]:
+                text = client.get(script).text
+                for match in list(re.finditer(r"pagina|ordenar|raio", text))[:6]:
+                    snippet = " ".join(text[max(0, match.start() - 160) : match.end() + 160].split())
+                    lines.append(f"  - `{snippet}`")
+            headers = {
+                "X-CSRFToken": token.group(1),
+                "X-Requested-With": "XMLHttpRequest",
+                "Referer": PDH_SEARCH,
+                "Origin": PDH,
+            }
+
+            def search(label: str, **extra: Any) -> tuple[int, Any]:
+                answer = client.post(PDH_SEARCH, data={**PDH_BASE, **extra}, headers=headers).json()
+                rows = answer.get("resultado") if isinstance(answer, dict) else None
+                count = len(rows or [])
+                total = answer.get("totalPaginas") if isinstance(answer, dict) else None
+                keys = sorted(answer) if isinstance(answer, dict) else type(answer).__name__
+                lines.append(f"- {label}: {count} results, totalPaginas {total}, keys {keys}")
+                return count, total
+
+            base, _ = search("baseline (raio 2, horas 72)")
+            for name in PAGE_SIZE_NAMES:
+                count, _ = search(f"{name}=100", **{name: 100})
+                if count > base:
+                    lines.append(f"  **{name} gives more per page**")
+                    break
+            search("raio 10", raio=10)
+            search("horas 168", horas=168)
+            search("pagina 2", pagina=2)
+        except (BlockedError, DisallowedError, httpx.HTTPError, ValueError) as error:
+            lines.append(f"Stopped: {error}"[:200])
+    return lines
+
+
+def main(argv: list[str] | None = None) -> int:
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+    args = argv if argv is not None else sys.argv[1:]
+    out = Path(args[args.index("--out") + 1]) if "--out" in args else None
+    lines = venues(args) if args and args[0] == "venues" else pdh_api(args)
+    text = "\n".join(lines)
+    print(text)
+    if out:
+        out.mkdir(parents=True, exist_ok=True)
+        (out / "report.md").write_text(text + "\n")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
