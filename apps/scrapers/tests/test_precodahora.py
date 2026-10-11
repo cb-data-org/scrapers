@@ -984,3 +984,25 @@ def test_a_focus_place_gets_every_word_and_barcode_every_page_in_rounds(
     again = offline(polite, site(answer=answer))
     run_tasks(again)
     assert again.focus_round == 2
+
+
+def test_a_bars_assumed_bottle_is_compared_per_litre_when_no_shop_sells_that_size(
+    adapter: PrecoDaHora,
+) -> None:
+    """O Baiano Churrasqueiro (11 Oct 2026): "HEINEKEN" at R$ 19,90 is its 600 ml bottle; the shops around only sell
+    Heineken cans, so the comparison is per litre, with the brand's prices in any size."""
+    store = shop("SUPERMERCADO BOM PRECO LTDA", "11222333000144", -13.0110, -38.4890)
+    butcher = shop("O BAIANO CHURRASQUEIRO", "33444555000166", -13.0100, -38.4880)
+    items = search(
+        adapter,
+        page(
+            *(sale("CERVEJA HEINEKEN LT 350ML", price, store) for price in (4.99, 5.29, 5.49)),
+            sale("HEINEKEN", 19.9, butcher),
+        ),
+    )
+    assert [item.data["name"] for item in items if item.kind == "venue"] == ["O Baiano Churrasqueiro"]
+    assert [
+        item.data["price"]
+        for item in items
+        if item.kind == "deal" and "33444555000166" in item.data["venue_ref"]
+    ] == [19.9]

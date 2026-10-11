@@ -33,6 +33,7 @@ import logging
 import math
 import os
 import re
+import statistics
 from collections import Counter
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
@@ -61,6 +62,7 @@ from ..geo.bairros import Bairro
 from ..matching import Candidate, best_match
 from ..venues import (
     SCOPE,
+    SHOP_PRICE_MIN,
     SUPERMARKETS,
     Evidence,
     ReviewRow,
@@ -1120,8 +1122,30 @@ class PrecoDaHora(Adapter):
         company = shop.company
         if serving.units != 1 or shop.category == "mercado" or (company and company.cnae in TAKEAWAY_CNAE):
             return False
+        price = float(product["precoUnitario"])
         median = self.shop_prices.median(serving_key(serving))
-        return bool(median) and float(product["precoUnitario"]) >= BAR_PRICE_RATIO * median
+        if median:
+            return price >= BAR_PRICE_RATIO * median
+        # No shop sells that size (a bar's assumed 600 ml Heineken among shops' cans): compare per litre with
+        # the shops' prices of the same brand, any size.
+        litre = self.brand_litre_median(serving)
+        volume = int(serving.format_code.rsplit("_", 1)[1])
+        return bool(litre) and price / (volume / 1000) >= BAR_PRICE_RATIO * litre
+
+    def brand_litre_median(self, serving: Serving) -> float | None:
+        """The supermarkets' median price per litre for a brand, across its beers and sizes."""
+        if serving.brand is None or self.catalog is None:
+            return None
+        products = {f"brand:{serving.brand.slug}"} | {
+            f"beer:{beer.slug}" for beer in self.catalog.beers if beer.brand == serving.brand.slug
+        }
+        litres = [
+            price / (int(key.rsplit("_", 1)[1]) / 1000)
+            for key, rows in self.shop_prices.prices.items()
+            if key.split("|")[0] in products and key.rsplit("_", 1)[-1].isdigit()
+            for _, price in rows
+        ]
+        return statistics.median(litres) if len(litres) >= SHOP_PRICE_MIN else None
 
     def serving_venue(self, shop: Shop) -> Venue | None:
         """A shop outside the bars' activities that serves beer at bar prices, as a restaurant, once a run:
@@ -1164,6 +1188,7 @@ class PrecoDaHora(Adapter):
                 }
                 venue = Venue(f"cnpj:{shop.cnpj}", name, Item("venue", f"cnpj:{shop.cnpj}", data))
             self.skipped["shop serving at bar prices (listed as a restaurant)"] += 1
+            log.info("listed as a restaurant (bar prices): %s, %s", name, bairro.slug)
         self.venues[shop.cnpj] = venue
         return venue
 
