@@ -20,6 +20,9 @@ MODEL = "gemini-3.1-flash-lite"
 API = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 #: The free tier allows 15 requests a minute: a little over 4 s apart.
 PAUSE_S = 4.5
+#: "Experiencing high demand" (503) and other server errors pass: wait and ask again, twice. A 429 is the
+#: daily quota and is not retried.
+RETRY_WAITS_S = (15, 45)
 
 POST = """
 
@@ -67,13 +70,20 @@ class Gemini:
         if self.calls:
             time.sleep(PAUSE_S)
         self.calls += 1
-        try:
-            response = self.client.post(
-                API.format(model=self.model), json=payload, headers={"x-goog-api-key": self.key}, timeout=120
-            )
-            data = response.json()
-        except (httpx.HTTPError, ValueError) as error:
-            return Extraction("json_prompt", "", error=f"{type(error).__name__}: {error}")
+        for wait in (*RETRY_WAITS_S, None):
+            try:
+                response = self.client.post(
+                    API.format(model=self.model),
+                    json=payload,
+                    headers={"x-goog-api-key": self.key},
+                    timeout=120,
+                )
+                data = response.json()
+            except (httpx.HTTPError, ValueError) as error:
+                return Extraction("json_prompt", "", error=f"{type(error).__name__}: {error}")
+            if response.status_code < 500 or wait is None:
+                break
+            time.sleep(wait)
         if response.status_code != 200:
             message = (data.get("error") or {}).get("message", str(response.status_code))
             return Extraction("json_prompt", "", error=str(message)[:300])
