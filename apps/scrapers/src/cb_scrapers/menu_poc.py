@@ -75,6 +75,7 @@ def bars(path: Path) -> list[dict[str, Any]]:
                     "lng": located[1],
                     "website": next((u for u in links if not SOCIAL.search(u)), None),
                     "instagram": next((u for u in links if "instagram" in u.lower()), None),
+                    "links": links,
                 }
             )
     # Bars before restaurants: they are the ones the site is about.
