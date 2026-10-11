@@ -1,0 +1,300 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "venue_name": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Venue as written"
+    },
+    "venue_ref": {
+      "anyOf": [
+        {
+          "type": "string",
+          "maxLength": 120
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Exact key for the venue: osm:node/123, cnpj:…, cardapioweb:<slug>, instagram:<handle> or venue:<id>; \"new\" for the bar that came with the item (queue payload.venue)"
+    },
+    "beer": {
+      "anyOf": [
+        {
+          "type": "string",
+          "maxLength": 80
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Beer as written, e.g. \"Brahma Chopp\""
+    },
+    "brand": {
+      "anyOf": [
+        {
+          "type": "string",
+          "maxLength": 60
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "format": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "lata",
+            "long_neck",
+            "garrafa",
+            "litrao",
+            "chopp",
+            "torre",
+            "pint",
+            "half_pint",
+            "other"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "volume_ml": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 10000
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Volume of one unit"
+    },
+    "units": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 50,
+      "description": "Units the price buys (5 for a bucket of 5)"
+    },
+    "packaging": {
+      "type": "string",
+      "enum": [
+        "single",
+        "balde",
+        "torre",
+        "combo",
+        "dobro"
+      ]
+    },
+    "price": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 10000,
+      "description": "Price paid, in currency units (9.99)"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "BRL",
+        "GBP"
+      ]
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "regular",
+        "happy_hour",
+        "promo",
+        "combo",
+        "open_bar"
+      ]
+    },
+    "open_bar_minutes": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 1440
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "schedules": {
+      "maxItems": 14,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "days": {
+            "minItems": 1,
+            "maxItems": 7,
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 6
+            },
+            "description": "0 = Sunday … 6 = Saturday, city time"
+          },
+          "start": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "description": "HH:MM"
+          },
+          "end": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-4]):[0-5]\\d$",
+            "description": "HH:MM; earlier than start when it ends after midnight"
+          }
+        },
+        "required": [
+          "days",
+          "start",
+          "end"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "conditions": {
+      "anyOf": [
+        {
+          "type": "string",
+          "maxLength": 280
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "service_charge_pct": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 30
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "couvert": {
+      "anyOf": [
+        {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Cover charge, in currency units"
+    },
+    "valid_from": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+          "description": "YYYY-MM-DD"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "valid_until": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+          "description": "YYYY-MM-DD"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "observed_on": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+          "description": "YYYY-MM-DD"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "City-local date the price was seen"
+    },
+    "confidence": {
+      "anyOf": [
+        {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "notes": {
+      "anyOf": [
+        {
+          "type": "string",
+          "maxLength": 500
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "venue_name",
+    "venue_ref",
+    "beer",
+    "brand",
+    "format",
+    "volume_ml",
+    "units",
+    "packaging",
+    "price",
+    "currency",
+    "kind",
+    "open_bar_minutes",
+    "schedules",
+    "conditions",
+    "service_charge_pct",
+    "couvert",
+    "valid_from",
+    "valid_until",
+    "observed_on",
+    "confidence",
+    "notes"
+  ],
+  "additionalProperties": false,
+  "$id": "https://cervejabarata.com.br/schemas/deal_draft.schema.json",
+  "title": "DealDraft"
+}
