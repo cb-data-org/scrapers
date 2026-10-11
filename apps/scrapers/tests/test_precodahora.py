@@ -354,7 +354,8 @@ def site(pages: int = 1, page: str = PAGE, answer: Any = None) -> FakeSite:
             return httpx.Response(200, text=page)
         if answer is not None:
             return answer(request) if callable(answer) else answer
-        body = {"totalRegistros": 0, "totalPaginas": pages, "resultado": []}
+        # Some sales (not over the cap), so a circle isn't put off as empty.
+        body = {"totalRegistros": pages * 20, "totalPaginas": pages, "resultado": []}
         return httpx.Response(200, json=body)
 
     return FakeSite(
@@ -487,6 +488,85 @@ def test_a_term_over_the_cap_is_searched_again_in_smaller_circles(
         "heineken @ p-2 p1",
         "heineken @ p-2 p2",
     ]
+
+
+def test_a_crowded_circle_goes_straight_to_its_smaller_ones_next_round(
+    polite: Callable[..., PoliteClient], plan: Callable[..., None]
+) -> None:
+    plan(
+        ("heineken",),
+        mvp=("pituba",),
+        smaller={"pituba": {"p-1": (-13.0, -38.46, 1)}},
+    )
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        crowded = form(request)["raio"] == "2"
+        body = {
+            "totalRegistros": 160 if crowded else 30,
+            "totalPaginas": 4 if crowded else 1,
+            "resultado": [],
+        }
+        return httpx.Response(200, json=body)
+
+    assert run_tasks(offline(polite, site(answer=answer))) == [
+        "osm",
+        "heineken @ pituba p1",
+        "heineken @ p-1 p1",
+    ]
+    # The next round remembers: no search of the big circle.
+    assert run_tasks(offline(polite, site(answer=answer))) == ["heineken @ p-1 p1"]
+
+
+def test_a_2km_circle_without_hand_picked_ones_splits_into_seven() -> None:
+    ring = precodahora.children("grid-1")
+    assert len(ring) == 7 and all(radius == 1 for _, _, radius in ring.values())
+    assert ring["grid-1/0"][:2] == precodahora.GRID["grid-1"][:2]
+    assert precodahora.circle("grid-1/4") == ring["grid-1/4"]
+    assert precodahora.children("barra") == {}  # already 1 km: the site takes whole kilometres
+
+
+def test_a_crowded_1km_circle_is_read_from_both_ends(
+    polite: Callable[..., PoliteClient], plan: Callable[..., None]
+) -> None:
+    plan(("heineken",), mvp=("pituba",))
+    precodahora.PLACES["pituba"] = (-12.99928, -38.46068, 1)
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"totalRegistros": 160, "totalPaginas": 4, "resultado": []})
+
+    adapter = offline(polite, site(answer=answer))
+    assert run_tasks(adapter) == [
+        "osm",
+        "heineken @ pituba p1",
+        "heineken @ pituba p2",
+        "heineken @ pituba cheap",  # cheapest first: 60 sales the dearest-first pages couldn't show
+        "heineken @ pituba a2",
+        "heineken @ pituba a3",
+    ]
+    assert adapter.capped == {}
+
+
+def test_a_circle_where_a_term_sold_nothing_waits_two_weeks(
+    polite: Callable[..., PoliteClient], plan: Callable[..., None]
+) -> None:
+    plan(("devassa",), mvp=("pituba",))
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"codigo": 50, "descricao": "Nenhum resultado encontrado!"})
+
+    assert run_tasks(offline(polite, site(answer=answer))) == ["osm", "devassa @ pituba p1"]
+    adapter = offline(polite, site(answer=answer))
+    assert run_tasks(adapter) == []
+    assert adapter.skipped["search: nothing sold there lately"] == 1
+
+
+def test_search_sizes_are_forgotten_every_three_months(tmp_path: Path) -> None:
+    path = tmp_path / "density.json"
+    old = precodahora.Density(path, date(2026, 7, 1))
+    old.set("heineken", "pituba", 160)
+    old.save()
+    assert precodahora.Density(path, date(2026, 9, 28)).get("heineken", "pituba") == (160, date(2026, 7, 1))
+    assert precodahora.Density(path, date(2026, 9, 29)).get("heineken", "pituba") is None
 
 
 def test_stops_at_the_search_cap(

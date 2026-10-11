@@ -30,6 +30,7 @@ Once a day the adapter:
 
 import json
 import logging
+import math
 import os
 import re
 from collections import Counter
@@ -80,9 +81,20 @@ SEARCH_URL = f"{BASE}/produtos/"
 SEARCH_DELAY = 20.0
 #: Searches a run, under the 33rd search that the site once refused.
 MAX_SEARCHES = 30
-#: The site returns at most 4 pages (100 sales) per search.
+#: The site returns at most 4 pages (100 sales) per search, whatever the radius (the rest only shows from the
+#: other end: cheapest first). It ignores any page-size parameter (probed 11 Oct 2026).
 MAX_PAGES = 4
 PAGE_SIZE = 25
+CAP = MAX_PAGES * PAGE_SIZE
+#: What each search found, by term and circle (owner, 11 Oct 2026: every sale, without hammering the site),
+#: so the next rounds start at the right size: a crowded 2 km circle goes straight to its 1 km circles, a
+#: crowded 1 km circle is read from both ends, and a circle where a term sold nothing waits EMPTY_WAIT.
+#: Forgotten every DENSITY_DAYS, so new bars and busier streets come back into view.
+DENSITY_FILE = "precodahora-density.json"
+DENSITY_DAYS = 90
+EMPTY_WAIT = timedelta(days=14)
+#: A 2 km circle's 1 km circles: its centre and six around it, RING_KM away (together they cover it).
+RING_KM = 1.5
 #: Sales from the last 72 hours, as the site offers.
 HOURS = 72
 #: The MVP: circles (latitude, longitude, radius in km) around Pituba (covering Itaigara) and Rio Vermelho.
@@ -356,6 +368,65 @@ def sweep_job(term: str, place: str) -> bool:
     return term in SWEEP_TERMS and (place in MVP or any(place in SMALLER.get(mvp, {}) for mvp in MVP))
 
 
+def children(place: str) -> dict[str, tuple[float, float, int]]:
+    """The 1 km circles to search instead of a crowded 2 km one: the MVP's hand-picked ones, else the circle's
+    centre and six around it ("grid-5/0" … "grid-5/6"). None for a 1 km circle: the site takes whole km."""
+    if place in SMALLER:
+        return SMALLER[place]
+    found = PLACES.get(place)
+    if found is None or found[2] < 2:
+        return {}
+    lat, lng, _ = found
+    ring = {f"{place}/0": (lat, lng, 1)}
+    for k in range(6):
+        angle = math.radians(60 * k)
+        dlat = RING_KM * math.cos(angle) / 111.32
+        dlng = RING_KM * math.sin(angle) / (111.32 * math.cos(math.radians(lat)))
+        ring[f"{place}/{k + 1}"] = (round(lat + dlat, 5), round(lng + dlng, 5), 1)
+    return ring
+
+
+def circle(place: str) -> tuple[float, float, int] | None:
+    """A place's circle: a named one, or a 1 km circle of a 2 km one ("grid-5/3")."""
+    if place in PLACES:
+        return PLACES[place]
+    parent = place.rpartition("/")[0]
+    return children(parent).get(place) if parent else None
+
+
+class Density:
+    """Sales each search found (totalRegistros) by term and circle, with the day, in the run cache; started
+    afresh every DENSITY_DAYS."""
+
+    def __init__(self, path: Path, today: date) -> None:
+        self.path, self.today = path, today
+        try:
+            saved = json.loads(path.read_text("utf-8"))
+            started = date.fromisoformat(saved["started"])
+            cells = dict(saved["cells"])
+        except (OSError, ValueError, KeyError, TypeError):
+            started, cells = today, {}
+        if (today - started).days >= DENSITY_DAYS:
+            log.info("search sizes from %s forgotten (every %d days)", started, DENSITY_DAYS)
+            started, cells = today, {}
+        self.started, self.cells = started, cells
+
+    def get(self, term: str, place: str) -> tuple[int, date] | None:
+        cell = self.cells.get(f"{term}|{place}")
+        try:
+            return int(cell["total"]), date.fromisoformat(cell["on"])
+        except (TypeError, KeyError, ValueError):
+            return None
+
+    def set(self, term: str, place: str, total: int) -> None:
+        self.cells[f"{term}|{place}"] = {"total": total, "on": self.today.isoformat()}
+
+    def save(self) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        saved = {"started": self.started.isoformat(), "cells": self.cells}
+        self.path.write_text(json.dumps(saved, ensure_ascii=False), "utf-8")
+
+
 def serving_key(serving: Serving) -> str:
     """The beer and size, to compare a bar's price with shops': "brand:heineken|long_neck_330"."""
     return "|".join(serving.key.split("|")[:2])
@@ -412,6 +483,9 @@ class PrecoDaHora(Adapter):
         self.review = load_review() if review is None else review
         self.shop_prices = ShopPrices(cache_dir() / SHOP_PRICES_FILE)
         self.book = ShopBook(cache_dir() / SHOP_BOOK_FILE)
+        self.density = Density(cache_dir() / DENSITY_FILE, self.now.date())
+        #: Sales still out of reach after both ends of a 1 km circle, by search.
+        self.capped: dict[tuple[str, str], int] = {}
         self.searches = 0
         self.skipped: Counter[str] = Counter()
         self.unread: Counter[str] = Counter()
@@ -445,27 +519,50 @@ class PrecoDaHora(Adapter):
                 if self.searches >= MAX_SEARCHES:
                     log.info("%d searches done; %d jobs wait for the next runs", MAX_SEARCHES, len(queue))
                     return
+                smaller = children(place)
+                known = self.density.get(term, place)
+                if known and known[0] > CAP and smaller:
+                    # Crowded last time: straight to the smaller circles, without the big one's search.
+                    queue[0:1] = [(term, child) for child in smaller]
+                    continue
+                if known and known[0] == 0 and self.now.date() - known[1] < EMPTY_WAIT:
+                    self.skipped["search: nothing sold there lately"] += 1
+                    queue.pop(0)
+                    continue
                 # Shops' single beers come last in the dearest-first pages: one cheapest-first page for them.
                 if self.stores:
                     yield self.search_task(term, place, 1, cheapest=True)
+                split = False
                 for page in range(1, MAX_PAGES + 1):
                     if self.searches >= MAX_SEARCHES:
                         log.info("%d searches done; %d jobs wait for the next runs", MAX_SEARCHES, len(queue))
                         return
                     yield self.search_task(term, place, page)
-                    if (
-                        page == 1
-                        and place in SMALLER
-                        and self.totals.get((term, place), 0) > MAX_PAGES * PAGE_SIZE
-                    ):
-                        # Over the cap: the smaller circles, next.
-                        queue[1:1] = [(term, smaller) for smaller in SMALLER[place]]
-                        break
+                    if page == 1:
+                        total = self.totals.get((term, place), 0)
+                        self.density.set(term, place, total)
+                        if total > CAP and smaller:
+                            # Over the cap: the smaller circles, next.
+                            queue[1:1] = [(term, child) for child in smaller]
+                            split = True
+                            break
                     if self.last_page(term, place, page):
                         break
+                total = self.totals.get((term, place), 0)
+                if not split and total > CAP:
+                    # Over the cap in a 1 km circle: what the dearest-first pages missed, cheapest first.
+                    needed = min(MAX_PAGES, math.ceil((total - CAP) / PAGE_SIZE))
+                    for page in range(2 if self.stores else 1, needed + 1):
+                        if self.searches >= MAX_SEARCHES:
+                            log.info("%d searches done; %d jobs wait", MAX_SEARCHES, len(queue))
+                            return
+                        yield self.search_task(term, place, page, cheapest=True)
+                    if total > 2 * CAP:
+                        self.capped[(term, place)] = total - 2 * CAP
                 queue.pop(0)
         finally:
             self.save_queue(queue)
+            self.density.save()
             self.shop_prices.save()
             self.book.save()
             self.log_summary()
@@ -484,7 +581,7 @@ class PrecoDaHora(Adapter):
         terms = set(TERMS) | set(CITY_TERMS)
         try:
             saved = json.loads(self.queue_file.read_text("utf-8"))
-            jobs = [(term, place) for term, place in saved["jobs"] if term in terms and place in PLACES]
+            jobs = [(term, place) for term, place in saved["jobs"] if term in terms and circle(place)]
             # Rounds saved before they kept their terms (6 Oct 2026) had every term but the last two.
             planned = saved.get("terms", TERMS[:-2])
             planned_city = saved.get("city_terms", CITY_TERMS)
@@ -538,8 +635,9 @@ class PrecoDaHora(Adapter):
 
     def search_task(self, term: str, place: str, page: int, cheapest: bool = False) -> Task:
         """A page of sales; `cheapest` asks for the cheapest first, where the shops' single beers are."""
-        lat, lng, radius = PLACES[place]
-        key = f"{term} @ {place} {'cheap' if cheapest else f'p{page}'}"
+        lat, lng, radius = circle(place) or PLACES[place]
+        suffix = ("cheap" if page == 1 else f"a{page}") if cheapest else f"p{page}"
+        key = f"{term} @ {place} {suffix}"
         self.searching[key] = (term, place)
         params = {
             "termo": term,
@@ -631,7 +729,7 @@ class PrecoDaHora(Adapter):
             raise BlockedError(fetched.task.key, f"unexpected answer: {shape(data)}")
         search = self.searching.pop(fetched.task.key)
         items = list(self.items(results))
-        if not fetched.task.key.endswith(" cheap"):
+        if re.search(r" p\d+$", fetched.task.key):
             self.pages[search] = int(data.get("totalPaginas") or 0)
             self.totals[search] = int(data.get("totalRegistros") or 0)
             bars = sum(
@@ -941,6 +1039,13 @@ class PrecoDaHora(Adapter):
             len(self.held),
             self.cnpjs.lookups,
         )
+        if self.capped:
+            log.info(
+                "still over the cap after both ends (sales out of reach): %s",
+                ", ".join(
+                    f"{term} @ {place} {count}" for (term, place), count in sorted(self.capped.items())
+                ),
+            )
         self.write_github_summary()
         for reason, count in self.skipped.most_common():
             log.info("skipped %d: %s", count, reason)
