@@ -36,6 +36,9 @@ jobs:
       CB_INGEST_TOKEN: ${{ secrets.CB_INGEST_TOKEN }}
       CB_STORES: ${{ vars.CB_STORES || '1' }}
       CB_FOCUS: ${{ vars.CB_FOCUS }}
+      CB_META_TOKEN: ${{ secrets.CB_META_TOKEN }}
+      CB_IG_USER_ID: ${{ vars.CB_IG_USER_ID }}
+      CB_GEMINI_KEY: ${{ secrets.CB_GEMINI_KEY }}
       ADAPTERS: ${{ inputs.adapters }}
       CB_CACHE_DIR: ${{ github.workspace }}/.scrapers-cache
     steps:
