@@ -35,6 +35,7 @@ jobs:
       CB_API_URL: ${{ vars.CB_API_URL }}
       CB_INGEST_TOKEN: ${{ secrets.CB_INGEST_TOKEN }}
       CB_STORES: ${{ vars.CB_STORES || '1' }}
+      CB_FOCUS: ${{ vars.CB_FOCUS }}
       ADAPTERS: ${{ inputs.adapters }}
       CB_CACHE_DIR: ${{ github.workspace }}/.scrapers-cache
     steps:

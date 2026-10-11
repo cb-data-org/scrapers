@@ -571,7 +571,14 @@ class PrecoDaHora(Adapter):
         self.bairros = bairros or BairroIndex.from_files()
         self.cnpjs = cnpjs or CnpjRegister(http, default_cache_file())
         self.osm_cache = osm_cache or cache_dir() / "precodahora-osm.json"
-        self.queue_file = cache_dir() / "precodahora-queue.json"
+        #: A full pass over one place, round after round (owner, 11 Oct 2026: the full potential for Pituba):
+        #: CB_FOCUS=pituba searches every word and every known barcode there, reading every page, with its
+        #: own queue; the city's round waits untouched until the variable is cleared.
+        focus = os.environ.get("CB_FOCUS", "").strip()
+        self.focus = focus if focus in PLACES else None
+        self.focus_round = 0
+        name = f"precodahora-queue-{self.focus}.json" if self.focus else "precodahora-queue.json"
+        self.queue_file = cache_dir() / name
         self.now = datetime.now(UTC)
         #: When the last MVP sweep started, as saved with the queue.
         self.swept: str | None = None
@@ -668,7 +675,7 @@ class PrecoDaHora(Adapter):
                             break
                     # Every page of a barcode (shops' sales too); words stop once the bars are behind.
                     if page >= self.pages.get((term, place), 0) or (
-                        not barcode and self.last_page(term, place, page)
+                        not barcode and not self.focus and self.last_page(term, place, page)
                     ):
                         break
                 if useless:
@@ -715,6 +722,8 @@ class PrecoDaHora(Adapter):
         join the round (the MVP's first, the city's last); a new round starts when nothing is left. The MVP
         sweep goes in front when it is due."""
         terms = set(TERMS) | set(CITY_TERMS)
+        if self.focus:
+            return self.focus_queue()
         try:
             saved = json.loads(self.queue_file.read_text("utf-8"))
             jobs = [
@@ -745,6 +754,23 @@ class PrecoDaHora(Adapter):
         ]
         return self.with_sweep(added + jobs + added_city, saved.get("swept"))
 
+    def focus_queue(self) -> list[tuple[str, str]]:
+        """The focus place's searches left, or a new round: every word, then every barcode known by now."""
+        assert self.focus is not None
+        try:
+            saved = json.loads(self.queue_file.read_text("utf-8"))
+            jobs = [(t, p) for t, p in saved["jobs"] if (t in TERMS or t.isdigit()) and circle(p)]
+            self.focus_round = int(saved.get("round", 0))
+        except (OSError, ValueError, KeyError, TypeError):
+            jobs = []
+        if not jobs:
+            self.focus_round += 1
+            jobs = [(term, self.focus) for term in TERMS] + [
+                (code, self.focus) for code in self.gtins.searchable()
+            ]
+            log.info("focus %s: round %d, %d searches planned", self.focus, self.focus_round, len(jobs))
+        return jobs
+
     def with_sweep(self, queue: list[tuple[str, str]], swept: Any) -> list[tuple[str, str]]:
         """The queue with the MVP sweep in front when the last one started SWEEP_EVERY ago or more (or never),
         in place of any sweep searches still waiting. A sweep cut short by the search cap or a block stays
@@ -770,6 +796,7 @@ class PrecoDaHora(Adapter):
             "city_places": list(CITY),
             "jobs": [list(job) for job in queue],
             "swept": self.swept,
+            "round": self.focus_round,
         }
         self.queue_file.write_text(json.dumps(saved, ensure_ascii=False), "utf-8")
 

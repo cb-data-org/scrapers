@@ -962,3 +962,25 @@ def test_a_word_still_over_both_ends_is_narrowed_while_that_helps(
     assert "heineken long neck @ pituba p1" in keys
     assert not any(key.startswith(("heineken 600", "heineken garrafa", "heineken chopp")) for key in keys)
     assert adapter.skipped["search: a narrower word didn't narrow"] == 1
+
+
+def test_a_focus_place_gets_every_word_and_barcode_every_page_in_rounds(
+    polite: Callable[..., PoliteClient], plan: Callable[..., None], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    plan(("chopp", "heineken"))
+    monkeypatch.setenv("CB_FOCUS", "pituba")
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"totalRegistros": 60, "totalPaginas": 3, "resultado": []})
+
+    adapter = offline(polite, site(answer=answer))
+    adapter.gtins.votes[CAN] = precodahora.Counter({"heineken||lata_350": 5})
+    keys = run_tasks(adapter)
+    # Every page of every word and of the barcode, around Pituba only.
+    assert keys == ["osm"] + [
+        f"{term} @ pituba p{page}" for term in ("chopp", "heineken", CAN) for page in (1, 2, 3)
+    ]
+    assert adapter.focus_round == 1
+    again = offline(polite, site(answer=answer))
+    run_tasks(again)
+    assert again.focus_round == 2
