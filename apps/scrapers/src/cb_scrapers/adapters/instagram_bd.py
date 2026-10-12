@@ -10,8 +10,9 @@ reading Instagram.
    since a flyer says it in the picture), each read once.
 3. Each post's caption and first images go to Gemini (ai/gemini.py, free tier, public content only), which
    returns deal drafts dated from the post ("hoje", "toda quinta").
-4. Each draft is sent as a price at that venue (venue:<id>): ingest queues AI-read prices, and the AI reviewer
-   publishes or rejects them by the owner's threshold.
+4. Each draft is sent as a price at that venue (venue:<id>). The bar's own account is its own word: ingest
+   approves its prices inside the hard bounds at once (as ai:instagram; the cron approves the rest), and the
+   others go to the AI reviewer, which publishes or rejects them by the owner's threshold.
 
 Without CB_META_TOKEN, CB_IG_USER_ID and CB_GEMINI_KEY the adapter does nothing.
 """

@@ -55,10 +55,10 @@ READER = ServingReader(committed_catalog())
         ("HEINEKEN LONG NECK", "heineken", None, "long_neck_330", 330, 1, "single"),
         ("BALDE C/5 HEINEKEN LN", "heineken", None, "long_neck_330", 330, 5, "balde"),
         ("SPATEN LONGNECK", "spaten", None, "long_neck_355", 355, 1, "single"),
-        # No size written: the usual one is assumed and volume stays None, so the deal waits for a person.
-        ("STELLA ARTOIS LONG NECK", "stella-artois", None, "long_neck_330", None, 1, "single"),
+        # No size written: the default one (a long neck is 355 ml) is assumed and volume stays None.
+        ("STELLA ARTOIS LONG NECK", "stella-artois", None, "long_neck_355", None, 1, "single"),
         ("CHOPP HEINEKEN", "heineken", None, "chopp_300", None, 1, "single"),
-        ("BALDE C/5 STELLA ARTOIS LN", "stella-artois", None, "long_neck_330", None, 5, "balde"),
+        ("BALDE C/5 STELLA ARTOIS LN", "stella-artois", None, "long_neck_355", None, 5, "balde"),
         ("BUDWEISER LONG NECK", "budweiser", None, "long_neck_330", 330, 1, "single"),
         ("BALDE HEINEKEN LN 330ML 6UN", "heineken", None, "long_neck_330", 330, 6, "balde"),
         # No named brand, but a written size: listed as just "Cerveja".

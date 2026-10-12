@@ -245,6 +245,10 @@ class MenuPhotoUpload(BaseModel):
     """
     Sent by the bar's owner or manager
     """
+    ref: Annotated[str | None, Field(pattern="^[A-Za-z0-9_-]{16}$")] = None
+    """
+    The bar's own link token (?ref= on the page, from GET /api/admin/venues/{id}/menu-link): a valid one makes the upload trusted, so its prices inside the hard bounds are approved at once
+    """
     consent: bool | None = None
     """
     LGPD consent: required with a contact
@@ -784,6 +788,10 @@ class VenueModel(BaseModel):
     attributes: Annotated[
         list[Literal["musica_ao_vivo", "transmite_jogos", "area_externa", "pe_na_areia"]], Field(max_length=4)
     ]
+    verified_at: Annotated[int | None, Field(ge=0)] = None
+    """
+    The 'bar verificado' badge: when prices from a menu the bar's owner sent were last approved (set on approval; it shows for 180 days). null revokes it. Display only: rankings never read it
+    """
     status: Literal["pending", "active", "closed", "hidden", "merged"]
     merged_into: Annotated[int | None, Field(gt=0)]
     created_at: Annotated[int, Field(ge=0)]
@@ -841,6 +849,10 @@ class Create(BaseModel):
         list[Literal["musica_ao_vivo", "transmite_jogos", "area_externa", "pe_na_areia"]] | None,
         Field(max_length=4),
     ] = None
+    verified_at: Annotated[int | None, Field(ge=0)] = None
+    """
+    The 'bar verificado' badge: when prices from a menu the bar's owner sent were last approved (set on approval; it shows for 180 days). null revokes it. Display only: rankings never read it
+    """
     status: Literal["pending", "active", "closed", "hidden"] | None = None
     """
     Admin-created venues start active; merging has its own endpoint
@@ -987,6 +999,57 @@ class VenueMerge(BaseModel):
     """
     The venue that stays
     """
+
+
+class MenuLink(BaseModel):
+    venue_id: Annotated[int, Field(gt=0)]
+    city: str
+    venue: str
+    """
+    The bar's slug
+    """
+    ref: str
+    """
+    HMAC of the city and the bar (DATA_KEY), first 16 base64url characters
+    """
+    url: str
+    """
+    The pt-BR menu page with the bar and its ref
+    """
+    url_en: str
+    """
+    The same page in English
+    """
+
+
+class MenuPhotoResult(BaseModel):
+    photo: Annotated[int, Field(gt=0)]
+    model: str | None
+    """
+    The model whose answer was used; null when none answered
+    """
+    tried: list[str]
+    """
+    Models asked, in order
+    """
+    drafts: Annotated[int, Field(ge=0)]
+    """
+    Drafts in the answer
+    """
+    valid: Annotated[int, Field(ge=0)]
+    """
+    Drafts that fit the contract
+    """
+    invalid: Annotated[int, Field(ge=0)]
+    issue: str | None
+    """
+    Why the first invalid draft was refused
+    """
+    error: str | None
+    """
+    Every model's error, when none read the photo
+    """
+    menu_venue_name: str | None
 
 
 class CityDemand(BaseModel):
@@ -1239,6 +1302,10 @@ class VenueCreate(BaseModel):
         list[Literal["musica_ao_vivo", "transmite_jogos", "area_externa", "pe_na_areia"]] | None,
         Field(max_length=4),
     ] = None
+    verified_at: Annotated[int | None, Field(ge=0)] = None
+    """
+    The 'bar verificado' badge: when prices from a menu the bar's owner sent were last approved (set on approval; it shows for 180 days). null revokes it. Display only: rankings never read it
+    """
     status: Literal["pending", "active", "closed", "hidden"] | None = None
     """
     Admin-created venues start active; merging has its own endpoint
@@ -1279,6 +1346,10 @@ class VenuePatch(BaseModel):
         list[Literal["musica_ao_vivo", "transmite_jogos", "area_externa", "pe_na_areia"]] | None,
         Field(max_length=4),
     ] = None
+    verified_at: Annotated[int | None, Field(ge=0)] = None
+    """
+    The 'bar verificado' badge: when prices from a menu the bar's owner sent were last approved (set on approval; it shows for 180 days). null revokes it. Display only: rankings never read it
+    """
     status: Literal["pending", "active", "closed", "hidden"] | None = None
     """
     Admin-created venues start active; merging has its own endpoint
@@ -2057,6 +2128,42 @@ class CsvImportResult(BaseModel):
     """
 
 
+class MenuPhotoLogEntry(BaseModel):
+    upload: str
+    at: int
+    """
+    Unix seconds
+    """
+    city: str
+    venue: str
+    venue_id: Annotated[int, Field(gt=0)]
+    photos: Annotated[int, Field(ge=0)]
+    is_owner: bool
+    admin: bool
+    """
+    Sent with an admin token
+    """
+    trust: Literal["ref", "name", "public", "admin"] | None
+    """
+    Why its prices were trusted (approved without the AI reviewer); null: the reviewer decides
+    """
+    ai: bool
+    """
+    Workers AI was on
+    """
+    results: list[MenuPhotoResult]
+    queued: Annotated[int, Field(ge=0)]
+    approved: Annotated[int, Field(ge=0)]
+    later: Annotated[int, Field(ge=0)]
+    """
+    Left to the cron for approval (the request's D1 budget ran out)
+    """
+    error: str | None
+    """
+    What broke the processing, if anything
+    """
+
+
 class CityDemandList(BaseModel):
     items: list[CityDemand]
 
@@ -2150,3 +2257,7 @@ class QueueOutcome(BaseModel):
     item: QueueItem
     deal: Deal | None = None
     venue: VenueModel | None = None
+
+
+class MenuPhotoLog(BaseModel):
+    entries: list[MenuPhotoLogEntry]

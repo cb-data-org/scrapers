@@ -33,9 +33,11 @@ Mode = Literal["json_schema", "json_prompt"]
 PROMPT = """You read photos and screenshots of Brazilian bar menus and drink promotions (Salvador, Bahia).
 List every BEER price you can see as a draft: one draft per beer, format, size and price, e.g.
 "Heineken long neck R$ 14,90". A beer sold in several sizes (columns such as 300ml and 500ml) is one
-draft per size, each with its volume_ml. Skip lines that are crossed out or marked as sold out.
-Ignore food, soft drinks, water, juices, spirits, wine and cocktails. If there is no beer price, return no
-drafts.
+draft per size, each with its volume_ml. A line naming several beers at one price
+("AMSTEL E ORIGINAL R$ 14,90", "Skol/Brahma") is one draft per beer at that price. A size in a section's
+heading ("CERVEJAS 600ML") applies to every beer under it. Write a beer's usual name when the menu misspells
+it ("Stela" is Stella Artois). Skip lines that are crossed out or marked as sold out. Ignore food, soft
+drinks, water, juices, spirits, wine and cocktails. If there is no beer price, return no drafts.
 
 For each draft:
 - beer: the beer as written (e.g. "Brahma Duplo Malte"); brand: just the brand ("Brahma") when clear,
