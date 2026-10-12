@@ -991,6 +991,126 @@ class CsvImport(BaseModel):
     """
 
 
+class UnmatchedVenue(RootModel[int]):
+    root: Annotated[int, Field(gt=0)]
+
+
+class LeadImportIssue(BaseModel):
+    line: Annotated[int, Field(gt=0)]
+    message: str
+
+
+class LeadImportRow(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    slot: Annotated[int | None, Field(ge=1, le=999)] = None
+    """
+    Founding slot (the list's order), 1..30
+    """
+    name: Annotated[str, Field(max_length=120, min_length=1)]
+    bairro: Annotated[str | None, Field(max_length=80)] = None
+    venue: Annotated[str | None, Field(pattern="^[a-z0-9-]{1,80}$")] = None
+    """
+    The bar's slug in the import's city, to link the venue
+    """
+    channel: Literal["instagram", "whatsapp", "email"] | None = None
+    """
+    Default: instagram with a handle, else whatsapp, else email
+    """
+    handle: Annotated[str | None, Field(max_length=60)] = None
+    """
+    Instagram handle, with or without the @
+    """
+    phone: Annotated[str | None, Field(max_length=40)] = None
+    email: Annotated[str | None, Field(max_length=160)] = None
+    contact_source: Literal["published", "given", "owner"] | None = None
+    """
+    Default published (by the bar)
+    """
+    email_source: (
+        Literal["published", "given", "owner", "site", "instagram_bio", "google", "bar_gave"] | None
+    ) = None
+    """
+    Where the email came from: site, instagram_bio, google (published by the bar) or bar_gave (given); also published/given/owner. The email sequence only writes to an address with a source
+    """
+    note: Annotated[str | None, Field(max_length=200)] = None
+
+
+class Lead(BaseModel):
+    id: Annotated[int, Field(gt=0)]
+    venue_id: Annotated[int | None, Field(gt=0)]
+    name: str
+    bairro: str | None
+    slot: int | None
+    channel: Literal["instagram", "whatsapp", "email"]
+    has_handle: bool
+    has_phone: bool
+    has_email: bool
+    stage: Literal[
+        "new",
+        "dm1_sent",
+        "replied",
+        "menu_received",
+        "offer_sent",
+        "reserved",
+        "paying",
+        "declined",
+        "no_response",
+        "do_not_contact",
+    ]
+    do_not_contact: bool
+    followups: Annotated[int, Field(ge=0)]
+    last_contact_at: int | None
+    next_followup_at: int | None
+    replied_at: int | None
+    note: str | None
+
+
+class LeadActionResult(BaseModel):
+    lead: Lead
+    event: Literal[
+        "imported",
+        "sent",
+        "followup_sent",
+        "replied",
+        "menu_received",
+        "badge",
+        "offer_sent",
+        "reserved",
+        "paying",
+        "declined",
+        "no_response",
+        "opt_out",
+        "note",
+        "email_sent",
+        "email_bounced",
+    ]
+
+
+class LeadActionRequest(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    action: Literal[
+        "send",
+        "reply",
+        "menu",
+        "badge",
+        "offer",
+        "reserve",
+        "pay",
+        "decline",
+        "no_response",
+        "do_not_contact",
+        "note",
+    ]
+    note: Annotated[str | None, Field(max_length=200, min_length=1)] = None
+    """
+    The note (action note), or a short detail
+    """
+
+
 class VenueMerge(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -2130,6 +2250,50 @@ class CsvImportResult(BaseModel):
     """
     The first 10 valid rows as they would be queued
     """
+
+
+class LeadImportResult(BaseModel):
+    dry_run: bool
+    rows: Annotated[int, Field(ge=0)]
+    inserted: Annotated[int, Field(ge=0)]
+    """
+    New leads (on a dry run: would be)
+    """
+    updated: Annotated[int, Field(ge=0)]
+    """
+    Leads already there (same venue, or same channel and handle), refreshed
+    """
+    unmatched_venues: list[UnmatchedVenue]
+    """
+    Lines whose venue slug isn't in the city
+    """
+    errors: list[LeadImportIssue]
+    """
+    Rows left out, by line; never echoes contact details
+    """
+
+
+class LeadImport(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    city: Annotated[str | None, Field(pattern="^[a-z0-9-]{1,80}$")] = None
+    """
+    The venues' city (default salvador)
+    """
+    csv: Annotated[str | None, Field(max_length=100000, min_length=1)] = None
+    """
+    The owner's list as CSV: ordem/slot, bar/nome, bairro, instagram, telefone/whatsapp, email, email_source/fonte_email, canal, pagina_do_bar or link_cardapio (the venue's slug is read from it), notas
+    """
+    rows: Annotated[list[LeadImportRow] | None, Field(max_length=25)] = None
+    dry_run: bool | None = None
+    """
+    Check the rows and say what would change, writing nothing
+    """
+
+
+class LeadList(BaseModel):
+    items: list[Lead]
 
 
 class MenuPhotoLogEntry(BaseModel):
