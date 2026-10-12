@@ -1008,9 +1008,13 @@ class MenuLink(BaseModel):
     """
     The bar's slug
     """
+    generation: Annotated[int, Field(ge=0)]
+    """
+    The link's generation: 0 for the first link, one more each time the link was revoked
+    """
     ref: str
     """
-    HMAC of the city and the bar (DATA_KEY), first 16 base64url characters
+    HMAC of the city, the bar and (from generation 1) the generation (DATA_KEY), first 16 base64url characters
     """
     url: str
     """
@@ -2157,6 +2161,14 @@ class MenuPhotoLogEntry(BaseModel):
     later: Annotated[int, Field(ge=0)]
     """
     Left to the cron for approval (the request's D1 budget ran out)
+    """
+    held: Annotated[int | None, Field(ge=0)] = None
+    """
+    Trusted prices held for the AI reviewer: too far from the bar's, bairro's or city's median
+    """
+    ref_limited: bool | None = None
+    """
+    The bar's link had 3 trusted uploads in 24 hours: this one went to the AI reviewer
     """
     error: str | None
     """

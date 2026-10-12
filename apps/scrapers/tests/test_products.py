@@ -28,6 +28,10 @@ READER = ServingReader(committed_catalog())
         ("STELLA ARTOIS 275ML", "stella-artois", None, "long_neck_275", 275, 1, "single"),
         ("CORONA EXTRA LN 330ML", "corona", "corona-extra", "long_neck_330", 330, 1, "single"),
         ("CERVEJA SPATEN LN 355ML", "spaten", None, "long_neck_355", 355, 1, "single"),
+        # 350 ml chopps and long necks are common in Brazil: their own formats (bare 350 stays a can).
+        ("CHOPP BRAHMA 350ML", "brahma", None, "chopp_350", 350, 1, "single"),
+        ("CHOPP BRAHMA 350", "brahma", None, "chopp_350", 350, 1, "single"),
+        ("HEINEKEN LN 350ML", "heineken", None, "long_neck_350", 350, 1, "single"),
         ("BRAHMA DUPLO MALTE LATA 350ML", "brahma", "brahma-duplo-malte", "lata_350", 350, 1, "single"),
         ("BRAHMA 1L", "brahma", None, "litrao_1000", 1000, 1, "single"),
         # The returnable 300 ml bottle (litrinho), not a 300 ml chopp (#313).

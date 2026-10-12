@@ -723,6 +723,14 @@
       "aliases": []
     },
     {
+      "code": "long_neck_350",
+      "type": "long_neck",
+      "volume_ml": 350,
+      "label_pt": "Long neck 350 ml",
+      "label_en": "Bottle 350 ml",
+      "aliases": []
+    },
+    {
       "code": "long_neck_355",
       "type": "long_neck",
       "volume_ml": 355,
@@ -768,6 +776,14 @@
       "volume_ml": 330,
       "label_pt": "Chopp 330 ml",
       "label_en": "Draught 330 ml",
+      "aliases": []
+    },
+    {
+      "code": "chopp_350",
+      "type": "chopp",
+      "volume_ml": 350,
+      "label_pt": "Chopp 350 ml",
+      "label_en": "Draught 350 ml",
       "aliases": []
     },
     {
