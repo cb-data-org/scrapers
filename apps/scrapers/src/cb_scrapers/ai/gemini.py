@@ -14,7 +14,7 @@ from typing import Any
 
 import httpx
 
-from .workers_ai import JSON_ONLY, PROMPT, Extraction, drafts_schema, parse_drafts
+from .workers_ai import JSON_ONLY, PROMPT, Extraction, TextReply, drafts_schema, parse_drafts
 
 MODEL = "gemini-3.1-flash-lite"
 API = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
@@ -100,3 +100,45 @@ class Gemini:
         )
         extraction.drafts, extraction.invalid = parse_drafts(reply)
         return extraction
+
+    def generate(self, prompt: str, max_tokens: int = 800) -> TextReply:
+        """One text prompt in, a JSON reply out (the venue classifier's votes); same pacing and retries."""
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {
+                "temperature": 0.1,
+                "responseMimeType": "application/json",
+                "maxOutputTokens": max_tokens,
+            },
+        }
+        if self.calls:
+            time.sleep(PAUSE_S)
+        self.calls += 1
+        for wait in (*RETRY_WAITS_S, None):
+            try:
+                response = self.client.post(
+                    API.format(model=self.model),
+                    json=payload,
+                    headers={"x-goog-api-key": self.key},
+                    timeout=120,
+                )
+                data = response.json()
+            except (httpx.HTTPError, ValueError) as error:
+                return TextReply(self.model, error=f"{type(error).__name__}: {error}")
+            if response.status_code < 500 or wait is None:
+                break
+            time.sleep(wait)
+        if response.status_code != 200:
+            message = (data.get("error") or {}).get("message", str(response.status_code))
+            return TextReply(self.model, error=f"HTTP {response.status_code}: {message}"[:300])
+        try:
+            text = "".join(p.get("text", "") for p in data["candidates"][0]["content"]["parts"])
+        except (KeyError, IndexError, TypeError):
+            return TextReply(self.model, error="no answer (blocked or empty)")
+        usage = data.get("usageMetadata") or {}
+        return TextReply(
+            self.model,
+            text,
+            prompt_tokens=int(usage.get("promptTokenCount") or 0),
+            completion_tokens=int(usage.get("candidatesTokenCount") or 0),
+        )

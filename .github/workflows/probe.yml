@@ -2,7 +2,8 @@ name: Source probe (manual)
 
 # One-off, read-only checks of data sources (cb_scrapers.source_probe): venues compares OpenStreetMap with
 # Overture Maps for well-known bars; pdh-api tries Preço da Hora's search with more per page; bars looks for
-# them on Preço da Hora's receipts (cb_scrapers.bar_finder).
+# them on Preço da Hora's receipts (cb_scrapers.bar_finder); classify evaluates the venue classifier against the
+# owner's decisions (cb_scrapers.classify_probe; read-only: it never sends a result).
 
 on:
   workflow_dispatch:
@@ -10,7 +11,7 @@ on:
       probe:
         description: Which check
         type: choice
-        options: [venues, pdh-api, pdh-search, bars, menus, platforms, instagram, handles, vision]
+        options: [venues, pdh-api, pdh-search, bars, menus, platforms, instagram, handles, vision, classify]
         default: venues
 
 permissions:
@@ -72,8 +73,30 @@ jobs:
           CB_CF_AI_TOKEN: ${{ secrets.CB_CF_AI_TOKEN }}
           CB_CF_ACCOUNT_ID: ${{ vars.CB_CF_ACCOUNT_ID }}
         run: uv run python -m cb_scrapers.vision_compare --out "$RUNNER_TEMP/probe"
+      # The scrapers' run cache: the CNPJ register's answers and what the receipts taught (restored, never saved).
+      - uses: actions/cache/restore@v4
+        if: inputs.probe == 'classify'
+        with:
+          path: .scrapers-cache
+          key: scrapers-cache-probe-${{ github.run_id }}
+          restore-keys: scrapers-cache-
+      - name: The venue classifier against the owner's decisions (Gemini, Workers AI, Google Places)
+        if: inputs.probe == 'classify'
+        env:
+          CB_API_URL: ${{ vars.CB_API_URL }}
+          CB_INGEST_TOKEN: ${{ secrets.CB_INGEST_TOKEN }}
+          CB_CACHE_DIR: ${{ github.workspace }}/.scrapers-cache
+          CB_GEMINI_KEY: ${{ secrets.CB_GEMINI_KEY }}
+          CB_CF_AI_TOKEN: ${{ secrets.CB_CF_AI_TOKEN }}
+          CB_CF_ACCOUNT_ID: ${{ vars.CB_CF_ACCOUNT_ID }}
+          CB_GOOGLE_PLACES_KEY: ${{ secrets.CB_GOOGLE_PLACES_KEY }}
+          CB_META_TOKEN: ${{ secrets.CB_META_TOKEN }}
+          CB_IG_USER_ID: ${{ vars.CB_IG_USER_ID }}
+        run: |
+          uvx overturemaps download --bbox=-38.70,-13.02,-38.25,-12.80 -f geojsonseq --type=place -o "$RUNNER_TEMP/places.geojsonseq"
+          uv run python -m cb_scrapers.classify_probe --overture "$RUNNER_TEMP/places.geojsonseq" --out "$RUNNER_TEMP/probe"
       - name: Probe
-        if: inputs.probe != 'bars' && inputs.probe != 'menus' && inputs.probe != 'platforms' && inputs.probe != 'instagram' && inputs.probe != 'handles' && inputs.probe != 'vision'
+        if: inputs.probe != 'bars' && inputs.probe != 'menus' && inputs.probe != 'platforms' && inputs.probe != 'instagram' && inputs.probe != 'handles' && inputs.probe != 'vision' && inputs.probe != 'classify'
         run: uv run python -m cb_scrapers.source_probe "${{ inputs.probe }}" --overture "$RUNNER_TEMP/places.geojsonseq" --out "$RUNNER_TEMP/probe"
       - name: Bars on the receipts
         if: inputs.probe == 'bars'

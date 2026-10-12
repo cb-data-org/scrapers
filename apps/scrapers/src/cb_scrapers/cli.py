@@ -9,6 +9,7 @@
     uv run cb spike vision --manifest FILE the free vision model against menus read by a person (#45)
     uv run cb venues audit                 suggest keep/hide for venues on the map (#331; admin token)
     uv run cb venues apply [--apply]       do what data/seed/venue-review.csv says (dry run unless --apply)
+    uv run cb run venue_classify           two LLM votes on what each venue is (bar, depósito, store…)
 
 Sending needs CB_API_URL (site or staging origin) and CB_INGEST_TOKEN (an ingest-scoped admin token).
 """
@@ -29,6 +30,8 @@ log = logging.getLogger("cb")
 
 def _sink(dry_run: bool, parser: argparse.ArgumentParser) -> Sink:
     if dry_run:
+        # Adapters that talk to the admin API themselves (venue_classify) print instead of sending.
+        os.environ["CB_DRY_RUN"] = "1"
         return DryRunSink()
     url, token = os.environ.get("CB_API_URL"), os.environ.get("CB_INGEST_TOKEN")
     if not url or not token:

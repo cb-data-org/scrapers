@@ -1261,6 +1261,122 @@ class SocialPostUpload(BaseModel):
     slides: Annotated[list[Slide], Field(max_length=10, min_length=1)]
 
 
+class Types(BaseModel):
+    bar: int | None
+    shop: int | None
+
+
+class Medians(BaseModel):
+    bar: int | None
+    shop: int | None
+    types: dict[str, Types]
+    """
+    The same per format type
+    """
+
+
+class Sample(RootModel[str]):
+    root: Annotated[str, Field(max_length=80)]
+
+
+class ByTypeItem(BaseModel):
+    type: Literal["lata", "long_neck", "garrafa", "litrao", "chopp", "torre", "pint", "half_pint", "other"]
+    n: Annotated[int, Field(ge=1)]
+    median_ppn_minor: int
+    """
+    Median price per litre of this format type's single servings
+    """
+
+
+class ClassifierPrices(BaseModel):
+    n: Annotated[int, Field(ge=0)]
+    """
+    Published prices
+    """
+    on_site: Annotated[int, Field(ge=0)]
+    """
+    Prices marked as drunk there
+    """
+    takeaway: Annotated[int, Field(ge=0)]
+    """
+    Prices marked as taken away
+    """
+    packs: Annotated[int, Field(ge=0)]
+    """
+    Prices for more than one unit (fardos, packs, baldes, combos)
+    """
+    median_ppn_minor: int | None
+    """
+    Median price per litre of single servings, in centavos
+    """
+    samples: Annotated[list[Sample], Field(max_length=6)]
+    """
+    e.g. "garrafa_600 R$ 12.90"
+    """
+    by_type: Annotated[list[ByTypeItem], Field(max_length=9)]
+    """
+    Per format type (lata, long_neck, garrafa, litrao…): compared with the city's bar and shop medians
+    """
+
+
+class Cnpj(RootModel[str]):
+    root: Annotated[str, Field(pattern="^\\d{14}$")]
+
+
+class Name(RootModel[str]):
+    root: Annotated[str, Field(max_length=120, min_length=2)]
+
+
+class ClassifierCandidatesRequest(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    limit: Annotated[int | None, Field(ge=1, le=50)] = 25
+    """
+    Venues for the scheduled batch: new venues first, then never checked, then checked 90+ days ago
+    """
+    cnpjs: Annotated[list[Cnpj] | None, Field(max_length=100)] = None
+    """
+    Instead of the scheduled batch: these venues (any status but merged), e.g. for an evaluation
+    """
+    names: Annotated[list[Name] | None, Field(max_length=30)] = None
+    """
+    Instead of the scheduled batch: venues with exactly this name (case ignored)
+    """
+    with_cnpj: bool | None = None
+    """
+    Scheduled batch: only venues with a CNPJ
+    """
+
+
+class ClassifierOutcomeCounts(BaseModel):
+    mode: Literal["off", "suggest", "apply"]
+    stored: Annotated[int, Field(ge=0)]
+    applied: Annotated[int, Field(ge=0)]
+    suggested: Annotated[int, Field(ge=0)]
+    same: Annotated[int, Field(ge=0)]
+    uncertain: Annotated[int, Field(ge=0)]
+    locked: Annotated[int, Field(ge=0)]
+    unknown: Annotated[int, Field(ge=0)]
+    """
+    Venue ids that don't exist or were merged
+    """
+
+
+class Reason(RootModel[str]):
+    root: Annotated[str, Field(max_length=200, min_length=1)]
+
+
+class ClassifierVote(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    model: Annotated[str, Field(max_length=80, min_length=1)]
+    kind: Literal["bar", "boteco", "pub", "barraca", "restaurante", "deposito", "cervejaria", "outro"]
+    on_site: bool
+    confidence: Annotated[float, Field(ge=0.0, le=1.0)]
+
+
 class City(BaseModel):
     id: Annotated[int, Field(gt=0)]
     market_id: Literal["br", "uk"]
@@ -2404,6 +2520,82 @@ class CityDemandList(BaseModel):
     items: list[CityDemand]
 
 
+class ClassifierVenue(BaseModel):
+    id: Annotated[int, Field(gt=0)]
+    name: str
+    kind: Literal["bar", "boteco", "pub", "barraca", "restaurante", "deposito", "cervejaria", "outro"]
+    on_site: bool
+    status: Literal["pending", "active", "closed", "hidden", "merged"]
+    city: str
+    """
+    City slug
+    """
+    neighbourhood: str | None
+    """
+    Bairro name
+    """
+    address: str | None
+    lat: float
+    lng: float
+    cnpj: Annotated[str | None, Field(pattern="^\\d{14}$")]
+    osm_ref: str | None
+    overture_id: str | None
+    instagram: str | None
+    created_at: int
+    classified_at: int | None
+    """
+    When the classifier last checked it
+    """
+    google_place_id: str | None
+    """
+    Google's place id from an earlier check (the only Places field kept)
+    """
+    locked: bool
+    """
+    An owner decided what it is (a person changed its kind, on_site or status in the last 180 days)
+    """
+    prices: ClassifierPrices
+
+
+class ClassifierResult(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    venue_id: Annotated[int, Field(gt=0)]
+    kind: Literal["bar", "boteco", "pub", "barraca", "restaurante", "deposito", "cervejaria", "outro"]
+    on_site: bool
+    """
+    Customers can drink there
+    """
+    confidence: Annotated[float, Field(ge=0.0, le=1.0)]
+    certain: bool
+    """
+    Both votes agree above the threshold; false: recorded as uncertain, never applied
+    """
+    reasons: Annotated[list[Reason], Field(max_length=5)]
+    """
+    Short, in English
+    """
+    evidence: Annotated[
+        list[
+            Literal[
+                "name",
+                "address",
+                "cnpj",
+                "osm",
+                "overture",
+                "prices",
+                "receipts",
+                "google_places",
+                "instagram",
+            ]
+        ],
+        Field(max_length=9),
+    ]
+    votes: Annotated[list[ClassifierVote], Field(max_length=4)]
+    google_place_id: Annotated[str | None, Field(max_length=300)] = None
+
+
 class CityPage(BaseModel):
     items: list[City]
     next: int | None
@@ -2497,3 +2689,19 @@ class QueueOutcome(BaseModel):
 
 class MenuPhotoLog(BaseModel):
     entries: list[MenuPhotoLogEntry]
+
+
+class ClassifierCandidates(BaseModel):
+    mode: Literal["off", "suggest", "apply"]
+    medians: dict[str, Medians]
+    """
+    Per city slug: the median price per litre (centavos) of bars' and shops' single servings
+    """
+    items: list[ClassifierVenue]
+
+
+class ClassifierResults(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    items: Annotated[list[ClassifierResult], Field(max_length=25, min_length=1)]

@@ -100,6 +100,21 @@ class Extraction:
         return neurons(self.prompt_tokens, self.completion_tokens)
 
 
+@dataclass
+class TextReply:
+    """A text-only completion (the venue classifier's votes): the reply, or why there is none."""
+
+    model: str
+    text: str = ""
+    error: str | None = None
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+
+    @property
+    def neurons(self) -> float:
+        return neurons(self.prompt_tokens, self.completion_tokens)
+
+
 def _json_text(text: str) -> str:
     """The JSON in a reply: without code fences or prose around it."""
     fenced = re.search(r"```(?:json)?\s*(.*?)```", text, re.S)
@@ -129,6 +144,7 @@ def parse_drafts(text: str) -> tuple[list[DealDraft], list[str]]:
 
 class WorkersAI:
     def __init__(self, account: str, token: str, client: httpx.Client, model: str = MODEL) -> None:
+        self.model = model
         self.url = API.format(account=account, model=model)
         self.headers = {"Authorization": f"Bearer {token}"}
         self.client = client
@@ -181,3 +197,38 @@ class WorkersAI:
         extraction.reasoning = str(message.get("reasoning_content") or message.get("reasoning") or "")
         extraction.drafts, extraction.invalid = parse_drafts(text)
         return extraction
+
+    def complete(self, prompt: str, schema: dict[str, Any] | None = None, max_tokens: int = 800) -> TextReply:
+        """One text prompt in, the model's reply out: JSON by `schema` (response_format) when given."""
+        body: dict[str, Any] = {
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.1,
+            "max_completion_tokens": max_tokens,
+            "chat_template_kwargs": {"enable_thinking": False},
+        }
+        if schema is not None:
+            body["response_format"] = {"type": "json_schema", "json_schema": schema}
+        try:
+            response = self.client.post(self.url, json=body, headers=self.headers, timeout=120.0)
+        except httpx.HTTPError as error:
+            return TextReply(self.model, error=f"{type(error).__name__}: {error}")
+        try:
+            envelope = response.json()
+        except ValueError:
+            envelope = {}
+        if response.status_code >= 400 or not envelope.get("success", False):
+            errors = "; ".join(str(e.get("message", e)) for e in envelope.get("errors", []))
+            return TextReply(self.model, error=f"HTTP {response.status_code}: {errors or 'no answer'}"[:300])
+        result = envelope.get("result") or {}
+        message = (result.get("choices") or [{}])[0].get("message") or {}
+        answer = result.get("response") or message.get("content")
+        text = answer if isinstance(answer, str) else json.dumps(answer) if answer is not None else ""
+        usage = result.get("usage") or {}
+        reply = TextReply(
+            self.model,
+            text,
+            prompt_tokens=int(usage.get("prompt_tokens", 0)),
+            completion_tokens=int(usage.get("completion_tokens", 0)),
+        )
+        self.spent += reply.neurons
+        return reply

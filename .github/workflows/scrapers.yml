@@ -2,10 +2,11 @@ name: Scrapers
 
 # Preço da Hora up to three times an hour (at most 30 searches, 20 s apart: about ten minutes; one run at a
 # time), so a round over the whole city finishes inside the site's 72-hour window, and every run also does any
-# other adapter that is due (OpenStreetMap and Overture weekly). GitHub drops many scheduled runs under load (two
-# of thirteen hourly ones ran on 10-11 Oct 2026, none for seven hours on 11 Oct), so each run also starts the next
-# one NEXT_RUN_WAIT seconds after it ends (a dispatch, which GITHUB_TOKEN may trigger); the schedule only restarts
-# that chain. One run at a time (the concurrency group): a run waiting its turn replaces any older waiting one.
+# other adapter that is due (OpenStreetMap and Overture weekly, the venue classifier daily). GitHub drops many
+# scheduled runs under load (two of thirteen hourly ones ran on 10-11 Oct 2026, none for seven hours on 11 Oct),
+# so each run also starts the next one NEXT_RUN_WAIT seconds after it ends (a dispatch, which GITHUB_TOKEN may
+# trigger); the schedule only restarts that chain. One run at a time (the concurrency group): a run waiting its
+# turn replaces any older waiting one.
 # Public repository: GitHub Actions minutes are free.
 on:
   schedule:
@@ -39,6 +40,10 @@ jobs:
       CB_META_TOKEN: ${{ secrets.CB_META_TOKEN }}
       CB_IG_USER_ID: ${{ vars.CB_IG_USER_ID }}
       CB_GEMINI_KEY: ${{ secrets.CB_GEMINI_KEY }}
+      # The venue classifier's second vote (Workers AI) and its extra evidence (Google Places: only place ids kept).
+      CB_CF_AI_TOKEN: ${{ secrets.CB_CF_AI_TOKEN }}
+      CB_CF_ACCOUNT_ID: ${{ vars.CB_CF_ACCOUNT_ID }}
+      CB_GOOGLE_PLACES_KEY: ${{ secrets.CB_GOOGLE_PLACES_KEY }}
       ADAPTERS: ${{ inputs.adapters }}
       CB_CACHE_DIR: ${{ github.workspace }}/.scrapers-cache
     steps:
