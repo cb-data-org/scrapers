@@ -1005,6 +1005,21 @@ def test_a_focus_place_gets_every_word_and_barcode_every_page_in_rounds(
     assert again.focus_round == 2
 
 
+def test_several_focus_places_share_one_queue_place_after_place(
+    polite: Callable[..., PoliteClient], plan: Callable[..., None], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    plan(("chopp",))
+    monkeypatch.setenv("CB_FOCUS", "pituba, rio-vermelho,nowhere")
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"totalRegistros": 10, "totalPaginas": 1, "resultado": []})
+
+    adapter = offline(polite, site(answer=answer))
+    assert adapter.focus == "pituba+rio-vermelho"
+    keys = run_tasks(adapter)
+    assert keys == ["osm", "chopp @ pituba p1", "chopp @ rio-vermelho p1"]
+
+
 def test_a_bars_assumed_bottle_is_compared_per_litre_when_no_shop_sells_that_size(
     adapter: PrecoDaHora,
 ) -> None:

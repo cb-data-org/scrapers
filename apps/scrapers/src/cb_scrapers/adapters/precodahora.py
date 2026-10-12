@@ -585,9 +585,14 @@ class PrecoDaHora(Adapter):
         self.osm_cache = osm_cache or cache_dir() / "precodahora-osm.json"
         #: A full pass over one place, round after round (owner, 11 Oct 2026: the full potential for Pituba):
         #: CB_FOCUS=pituba searches every word and every known barcode there, reading every page, with its
-        #: own queue; the city's round waits untouched until the variable is cleared.
-        focus = os.environ.get("CB_FOCUS", "").strip()
-        self.focus = focus if focus in PLACES else None
+        #: own queue; the city's round waits untouched until the variable is cleared. Several places, comma
+        #: separated (owner, 12 Oct 2026: the second campaign's areas), share one queue, place after place.
+        self.focus_places = [
+            place
+            for place in dict.fromkeys(os.environ.get("CB_FOCUS", "").replace(" ", "").split(","))
+            if place in PLACES
+        ]
+        self.focus = "+".join(self.focus_places) or None
         self.focus_round = 0
         name = f"precodahora-queue-{self.focus}.json" if self.focus else "precodahora-queue.json"
         self.queue_file = cache_dir() / name
@@ -779,9 +784,8 @@ class PrecoDaHora(Adapter):
             jobs = []
         if not jobs:
             self.focus_round += 1
-            jobs = [(term, self.focus) for term in TERMS] + [
-                (code, self.focus) for code in self.gtins.searchable()
-            ]
+            codes = self.gtins.searchable()
+            jobs = [(term, place) for place in self.focus_places for term in [*TERMS, *codes]]
             log.info("focus %s: round %d, %d searches planned", self.focus, self.focus_round, len(jobs))
         return jobs
 
