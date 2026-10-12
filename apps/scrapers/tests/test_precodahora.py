@@ -241,6 +241,15 @@ def page(*sales: dict[str, Any]) -> dict[str, Any]:
     return {"totalRegistros": len(sales), "totalPaginas": 1, "resultado": list(sales)}
 
 
+def held_back(items: list[Any]) -> list[str]:
+    """A held-back shop's items: its venue, with the checks' doubts, and its deals, both named by its CNPJ."""
+    venue, *deals = items
+    assert (venue.kind, venue.source_ref) == ("venue", f"cnpj:{SABORES}")
+    assert all(deal.kind == "deal" and deal.data["venue_ref"] == f"cnpj:{SABORES}" for deal in deals)
+    IngestRequest.model_validate({"source": "precodahora", "items": [item.to_json() for item in items]})
+    return list(venue.data["held_back"])
+
+
 def test_a_bakery_and_convenience_store_never_reaches_the_map(polite: Callable[..., PoliteClient]) -> None:
     body = register_body(SABORES, 5611201, "", 2062, 1091102, 4729699, 4729602)
     adapter = a_bar(polite, body, review={})
@@ -262,7 +271,11 @@ def test_a_bar_selling_beer_by_the_box_is_held_back_and_listed(
         sale("CX CERV HEINEKEN 12X350ML", 89.9, SABORES_SHOP, unidade="CX"),
         sale("CERVEJA ORIGINAL 600ML", 18.9, SABORES_SHOP),
     )
-    assert search(adapter, sales) == []
+    assert held_back(search(adapter, sales)) == [
+        "sells beer by the box, pack or keg (1x)",
+        "main activity 5611201 (restaurante)",
+        "sold CERVEJA ORIGINAL 600ML R$ 18.90",
+    ]
     adapter.log_summary()
     text = summary.read_text()
     assert "Preço da Hora: bars held back this run" in text
@@ -273,7 +286,9 @@ def test_a_bar_selling_beer_by_the_box_is_held_back_and_listed(
 def test_a_bar_charging_shop_prices_is_held_back(polite: Callable[..., PoliteClient]) -> None:
     adapter = a_bar(polite, register_body(SABORES, 5611201, "CASA DOS SABORES"), review={})
     shops = [sale("CERVEJA ORIGINAL 600ML", price, MERCADO_SHOP) for price in (8.99, 9.49, 9.99)]
-    assert search(adapter, page(*shops, sale("CERVEJA ORIGINAL 600ML", 10.5, SABORES_SHOP))) == []
+    doubts = held_back(search(adapter, page(*shops, sale("CERVEJA ORIGINAL 600ML", 10.5, SABORES_SHOP))))
+    assert doubts[0] == "prices like a shop's (1.11x the median shop price)"
+    assert doubts[-1] == "sold CERVEJA ORIGINAL 600ML R$ 10.50 (1.1x)"
     record = adapter.book.get(SABORES)
     assert record.reasons == ["prices like a shop's (1.11x the median shop price)"]
     assert record.samples == ["CERVEJA ORIGINAL 600ML R$ 10.50 (1.1x)"]
@@ -315,7 +330,11 @@ def test_a_micro_entrepreneur_shows_only_where_openstreetmap_has_a_bar(
     ]
     unknown = a_bar(polite, register_body(SABORES, 5611204, "CASA DOS SABORES", 2062, opcao_pelo_mei=True))
     unknown.review = {}
-    assert search(unknown, page(sale("CERVEJA ORIGINAL 600ML", 18.9, SABORES_SHOP))) == []
+    assert held_back(search(unknown, page(sale("CERVEJA ORIGINAL 600ML", 18.9, SABORES_SHOP))))[0] == (
+        "micro-entrepreneur (MEI) that OpenStreetMap doesn't map as a bar"
+    )
+    assert unknown.held == {SABORES}
+    assert not unknown.book.get(SABORES).sent
     assert unknown.book.get(SABORES).reasons == [
         "micro-entrepreneur (MEI) that OpenStreetMap doesn't map as a bar"
     ]
@@ -1006,3 +1025,18 @@ def test_a_bars_assumed_bottle_is_compared_per_litre_when_no_shop_sells_that_siz
         for item in items
         if item.kind == "deal" and "33444555000166" in item.data["venue_ref"]
     ] == [19.9]
+
+
+def test_a_held_back_bar_on_openstreetmap_keeps_its_prices_off_that_venue(
+    polite: Callable[..., PoliteClient],
+) -> None:
+    adapter = a_bar(polite, register_body(SABORES, 5611204, "BAR DA MARIA"), review={})
+    near = dict(SABORES_SHOP, latitude=-13.0105, longitude=-38.4860)
+    sales = page(
+        sale("CX CERV HEINEKEN 12X350ML", 89.9, near, unidade="CX"),
+        sale("CERVEJA ORIGINAL 600ML", 18.9, near),
+    )
+    items = search(adapter, sales)
+    # The OpenStreetMap venue with the CNPJ, for the AI reviewer; its deals by the CNPJ, so they wait with it.
+    assert (items[0].data["osm_ref"], items[0].data["cnpj"]) == ("node/2", SABORES)
+    assert held_back(items)[0] == "sells beer by the box, pack or keg (1x)"

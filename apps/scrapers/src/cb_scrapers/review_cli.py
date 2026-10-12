@@ -13,7 +13,7 @@ from .cnpj import CnpjRegister, default_cache_file
 from .core import BlockedError, PoliteClient, Task
 from .core.cache import cache_dir
 from .geo import BairroIndex
-from .review import AdminClient, apply, audit, held
+from .review import AdminClient, apply, audit
 from .venues import REVIEW_FILE, ShopBook, ShopPrices, load_review, write_review
 
 log = logging.getLogger(__name__)
@@ -57,9 +57,8 @@ def run_venues(action: str, url: str, token: str, *, apply_changes: bool = False
                 ShopPrices(cache_dir() / SHOP_PRICES_FILE),
                 review,
             )
+        # Doubtful venues get no row: the AI reviewer decides them from the daily runs (#416).
         rows = {**review, **{finding.row.cnpj: finding.row for finding in findings}}
-        # The shops the runs held back and never sent: pending, for the owner (#340).
-        rows |= {row.cnpj: row for row in held(book, rows, (v["cnpj"] for v in live if v.get("cnpj")))}
         write_review(rows.values(), REVIEW_FILE)
         counts = Counter(row.decision for row in rows.values())
         lines = [

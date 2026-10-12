@@ -314,7 +314,7 @@ class IngestResponse(BaseModel):
     """
     rejected: Annotated[int, Field(ge=0)]
     """
-    Outside the hard bounds or invalid
+    Outside the hard bounds, invalid, or for a place the AI reviewer holds back
     """
     duplicates: Annotated[int, Field(ge=0)]
     """
@@ -383,6 +383,10 @@ class DealDraft(BaseModel):
     notes: Annotated[str | None, Field(max_length=500)]
 
 
+class HeldBackItem(RootModel[str]):
+    root: Annotated[str, Field(max_length=200, min_length=1)]
+
+
 class VenueDraft(BaseModel):
     city: Annotated[str, Field(pattern="^[a-z0-9]+(?:-[a-z0-9]+)*$")]
     name: Annotated[str, Field(max_length=120, min_length=1)]
@@ -411,6 +415,10 @@ class VenueDraft(BaseModel):
     OpenStreetMap opening_hours syntax
     """
     attributes: list[Literal["musica_ao_vivo", "transmite_jogos", "area_externa", "pe_na_areia"]]
+    held_back: Annotated[list[HeldBackItem] | None, Field(max_length=8)] = None
+    """
+    Why the scraper's checks doubt it is a place to sit and drink, with the evidence. A new place sent with it waits for the AI reviewer, which keeps or hides it by the review threshold (#416); its prices wait too
+    """
 
 
 class ScrapeRunCreated(BaseModel):
@@ -1203,6 +1211,54 @@ class CityDemand(BaseModel):
     """
     Already one of the site's active cities
     """
+
+
+class SocialPostResult(BaseModel):
+    id: Annotated[int, Field(gt=0)]
+    status: Literal["review", "publishing", "published", "skipped", "failed", "expired"]
+    created: bool
+    """
+    False when this batch and position were already sent: nothing changed
+    """
+    sent: Annotated[int, Field(ge=0)]
+    """
+    Admins the post went to for review in this call
+    """
+    urls: list[AnyUrl]
+    """
+    The slides' public URLs
+    """
+
+
+class Slide(RootModel[str]):
+    root: Annotated[str, Field(max_length=1400000)]
+    """
+    A 1080×1350 JPEG slide, base64 (no data: prefix)
+    """
+
+
+class SocialPostUpload(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    batch: Annotated[str, Field(pattern="^[a-z0-9][a-z0-9-]{0,47}$")]
+    """
+    The render: "week-2026-10-16" (the Friday run) or "manual-<run id>"; with position, the post's key
+    """
+    position: Annotated[int, Field(ge=1, le=20)]
+    """
+    The post's place in the batch (1 = the city's)
+    """
+    key: Annotated[str, Field(pattern="^[a-z0-9]+(?:-[a-z0-9]+)*$")]
+    """
+    The city or bairro slug
+    """
+    title: Annotated[str, Field(max_length=120, min_length=1)]
+    """
+    The headline, e.g. "A cerveja mais barata na Pituba"
+    """
+    caption: Annotated[str, Field(max_length=2200, min_length=1)]
+    slides: Annotated[list[Slide], Field(max_length=10, min_length=1)]
 
 
 class City(BaseModel):

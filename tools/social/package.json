@@ -1,0 +1,11 @@
+{
+  "name": "cervejabarata-social",
+  "private": true,
+  "description": "The weekly Instagram carousels of cervejabarata.com.br (generated: tools/scripts/src/social/bundle.ts)",
+  "type": "module",
+  "dependencies": {
+    "@playwright/test": "1.63.0",
+    "@fontsource-variable/rubik": "5.3.0",
+    "@fontsource/yellowtail": "5.3.0"
+  }
+}

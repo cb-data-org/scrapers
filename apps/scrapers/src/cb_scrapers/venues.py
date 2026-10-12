@@ -7,7 +7,8 @@ gets a verdict from its evidence:
 - reject: its main registered activity isn't a bar, a restaurant or a brewery, or the evidence says "shop"
   twice over (two signs, or one sign and a shop word in its name);
 - review: one sign of a shop, prices like a shop's, a micro-entrepreneur (MEI) that OpenStreetMap doesn't map
-  as a bar, or a place OpenStreetMap maps as a café. It stays hidden until the owner decides;
+  as a bar, or a place OpenStreetMap maps as a café. It is sent with these doubts and waits in the queue for
+  the AI reviewer, which keeps or hides it by the review threshold (#416); nobody reviews it by hand;
 - show: everything else, whether OpenStreetMap knows the place or not.
 
 Signs of a shop: a secondary activity that makes a shop of a place (convenience store, supermarket, bakery,

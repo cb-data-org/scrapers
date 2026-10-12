@@ -3,15 +3,15 @@ applied in production through the admin API.
 
 `cb venues audit` judges every live venue that has a CNPJ with the checks for sit-down drinking places
 (venues.py): the CNPJ register, what the Preço da Hora runs learnt (sales by the box, prices against shop
-prices) and the venue's published prices. It suggests a decision for each (hide, pending, keep, or merge into
-the OpenStreetMap venue it duplicates), adds the shops the daily runs held back for review and never sent
-(pending, #340), and writes data/seed/venue-review.csv for the owner to review in a PR; decisions already
-there are kept.
+prices) and the venue's published prices. It suggests a decision for each (hide, keep, or merge into the
+OpenStreetMap venue it duplicates) and writes data/seed/venue-review.csv; decisions already there are kept.
+Doubtful venues (the checks' "review") get no row: the daily runs send them with their doubts to the AI
+reviewer, which keeps or hides each by the review threshold (#416), so no owner step remains. Rows marked
+pending by hand are left to the AI reviewer too.
 
-`cb venues apply` then does what the merged list says: it hides the venues marked hide or pending (which
-takes their prices off the map), puts back those marked keep, merges the duplicates, and stops counting
-OpenStreetMap nightclubs as bars. Dry run by default. The API writes the audit rows and marks the site for
-republishing.
+`cb venues apply` then does what the list says: it hides the venues marked hide (which takes their prices off
+the map), puts back those marked keep, merges the duplicates, and stops counting OpenStreetMap nightclubs as
+bars. Dry run by default. The API writes the audit rows and marks the site for republishing.
 """
 
 import logging
@@ -28,7 +28,7 @@ from .venues import BAR_KINDS, Evidence, ReviewRow, ShopBook, ShopPrices, judge
 
 log = logging.getLogger(__name__)
 
-SUGGESTION = {"reject": "hide", "review": "pending", "show": "keep"}
+SUGGESTION = {"reject": "hide", "show": "keep"}
 
 
 class AdminClient:
@@ -134,6 +134,9 @@ def audit(
             findings.append(Finding(venue, owner))
             continue
         verdict = judge(evidence)
+        if verdict.decision == "review":
+            # The AI reviewer decides it, when the daily runs see it on the receipts (#416).
+            continue
         decision, merge_into = SUGGESTION[verdict.decision], ""
         if not venue.get("osm_ref") and decision == "keep":
             twin = best_match(
@@ -147,21 +150,6 @@ def audit(
             note = f"second pin of “{twin.data['name']}”; {note}"
         findings.append(Finding(venue, ReviewRow(cnpj, decision, merge_into, venue["name"], note[:300])))
     return findings
-
-
-def held(book: ShopBook, review: dict[str, ReviewRow], live: Iterable[str] = ()) -> list[ReviewRow]:
-    """The shops the daily runs held back for the owner and never sent, as pending rows with their evidence.
-    Shops rejected on two signs stay out; shops already in the list, or live on the map, are covered there."""
-    covered = set(review) | set(live)
-    rows = []
-    for cnpj, record in book.records.items():
-        if record.decision != "review" or record.sent or cnpj in covered:
-            continue
-        place = f"bairro {record.bairro}" if record.bairro else "no bairro"
-        osm = f"OpenStreetMap {record.osm}" if record.osm else "not on OpenStreetMap"
-        note = "; ".join(["held back: " + ", ".join(record.reasons), place, osm, *record.samples[:3]])
-        rows.append(ReviewRow(cnpj, "pending", "", record.name or cnpj, note[:300]))
-    return rows
 
 
 def apply(
@@ -181,7 +169,7 @@ def apply(
         if venue is None:
             continue
         label = f"{venue['name']} ({row.cnpj}, venue {venue['id']})"
-        if row.decision in ("hide", "pending") and venue["status"] == "active":
+        if row.decision == "hide" and venue["status"] == "active":
             act(f"hide {label}", lambda v=venue: admin.patch(v["id"], status="hidden"))
         elif row.decision == "keep" and venue["status"] == "hidden":
             act(f"show again {label}", lambda v=venue: admin.patch(v["id"], status="active"))

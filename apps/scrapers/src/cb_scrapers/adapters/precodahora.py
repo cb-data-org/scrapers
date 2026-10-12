@@ -19,8 +19,10 @@ Once a day the adapter:
 4. Keeps only places to sit and drink, conservatively (venues.py, #330): the main activity (CNAE, from the
    CNPJ register) must be a bar, a restaurant or a brewery's taproom, and the evidence must not say "shop":
    secondary activities, beer sold by the box, prices like the supermarkets' in the same
-   receipts, a micro-entrepreneur OpenStreetMap doesn't know. Doubtful shops send nothing and wait for the
-   owner's decision in data/seed/venue-review.csv; each run's GitHub summary lists them with their evidence.
+   receipts, a micro-entrepreneur OpenStreetMap doesn't know. Doubtful shops are sent with their doubts
+   (VenueDraft.held_back) and wait in the queue for the AI reviewer, which keeps or hides each by the
+   review threshold (#416); their prices wait with them. The owner's decisions in data/seed/venue-review.csv
+   still come first; each run's GitHub summary lists the held-back shops with their evidence.
 5. Sends each shop as a venue: the OpenStreetMap one when name and place match (with its CNPJ, so the map
    keeps one pin), else a new one with the trade name from the CNPJ register, the receipt's address and
    coordinates. A one-person business without a trade name is left out: its legal name is its owner's name.
@@ -68,6 +70,7 @@ from ..venues import (
     ReviewRow,
     ShopBook,
     ShopPrices,
+    ShopRecord,
     Verdict,
     judge,
     load_review,
@@ -327,10 +330,12 @@ SMALL_WORDS = {"de", "da", "do", "das", "dos", "e", "em", "na", "no", "nas", "no
 
 @dataclass(frozen=True, slots=True)
 class Venue:
-    #: How deals name it: "osm:node/1" when matched to OpenStreetMap, else "cnpj:…".
+    #: How deals name it: "osm:node/1" when matched to OpenStreetMap, else "cnpj:…" (always, when held back).
     ref: str
     name: str
     item: Item
+    #: Sent with the checks' doubts (VenueDraft.held_back): it and its prices wait for the AI reviewer.
+    held: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -980,13 +985,15 @@ class PrecoDaHora(Adapter):
                     yield self.deal(venue, serving, product)
         for shop, serving, product in page:
             venue = self.venue(shop, serving, product)
-            if venue is None:
+            if venue is None or venue.held:
                 self.held.add(shop.cnpj)
+            if venue is None:
                 continue
             # The venue goes first, so ingest knows it when its first deal arrives.
             if venue.ref not in self.announced:
                 self.announced.add(venue.ref)
-                self.book.get(shop.cnpj).sent = True
+                if not venue.held:
+                    self.book.get(shop.cnpj).sent = True
                 yield venue.item
             yield self.deal(venue, serving, product)
 
@@ -1110,12 +1117,31 @@ class PrecoDaHora(Adapter):
         if verdict.decision == "show" and not name:
             verdict = Verdict("reject", ("no trade name (one-person business)",))
         record.decision, record.reasons = verdict.decision, list(verdict.reasons)
+        if verdict.decision == "review":
+            # The AI reviewer decides (#416): the venue goes with the doubts, and waits in the queue.
+            self.skipped["shop: review (sent to the AI reviewer)"] += 1
+            return self.held_venue(shop, str(name), verdict, record)
         if verdict.decision != "show":
             self.skipped[f"shop: {verdict.decision}"] += 1
             return None
         if shop.cnpj not in self.venues:
             self.venues[shop.cnpj] = self.venue_item(shop, str(name))
         return self.venues[shop.cnpj]
+
+    def held_venue(self, shop: Shop, name: str, verdict: Verdict, record: ShopRecord) -> Venue:
+        """A doubtful shop as a venue for the AI reviewer: the doubts and the evidence go with it, and its
+        deals name it by its CNPJ, so they wait with it (and stay off an OpenStreetMap venue it matches)."""
+        base = self.venue_item(shop, name)
+        company = shop.company
+        assert company is not None
+        evidence = [
+            *verdict.reasons,
+            f"main activity {company.cnae} ({SCOPE.get(company.cnae or 0, '?')})",
+            *(f"sold {sample}" for sample in record.samples[:3]),
+        ]
+        data = {**base.item.data, "held_back": [text[:200] for text in evidence][:8]}
+        ref = f"cnpj:{shop.cnpj}"
+        return Venue(ref, base.name, Item("venue", ref, data), held=True)
 
     def bar_priced(self, shop: Shop, serving: Serving, product: dict[str, Any]) -> bool:
         """At a bar's price: BAR_PRICE_RATIO times the supermarkets' or more (never a supermarket's own)."""
@@ -1264,7 +1290,9 @@ class PrecoDaHora(Adapter):
             return
         intro = (
             "### Preço da Hora: bars held back this run\n\n"
-            "Hidden until decided in `data/seed/venue-review.csv` (keep, hide, merge). "
+            "Verdict review: sent with its doubts to the AI reviewer, which keeps or hides it by the "
+            "review threshold (its score and decision are in the audit log); its prices wait for it. "
+            "Verdict reject: left out. `data/seed/venue-review.csv` still overrides both. "
             "“Sent before” means it may already be on the map.\n\n"
         )
         with Path(path).open("a", encoding="utf-8") as summary:

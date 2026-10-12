@@ -9,7 +9,7 @@ import pytest
 
 from cb_scrapers.cnpj import MINHA_RECEITA, CnpjRegister
 from cb_scrapers.core import PoliteClient
-from cb_scrapers.review import AdminClient, apply, audit, held
+from cb_scrapers.review import AdminClient, apply, audit
 from cb_scrapers.venues import ReviewRow, ShopBook, ShopPrices
 from tests.fakes import FakeSite
 
@@ -101,14 +101,12 @@ def test_the_audit_suggests_a_decision_for_each_live_venue_with_a_cnpj(
 ) -> None:
     findings = audit(LIVE, DEALS, cnpjs, ShopBook(None), shop_prices, review={})
     rows = {finding.row.cnpj: finding.row for finding in findings}
-    assert sorted(rows) == sorted([BAKERY, DEPOSITO_BAR, BAR, TWIN])
+    # The doubtful one (shop prices) gets no row: the AI reviewer decides it from the daily runs (#416).
+    assert sorted(rows) == sorted([BAKERY, BAR, TWIN])
     assert rows[BAKERY].decision == "hide"
     assert rows[BAKERY].note.startswith(
         "convenience store (4729602); bakery (1091102); main activity 5611201"
     )
-    assert rows[DEPOSITO_BAR].decision == "pending"
-    assert "prices like a shop's (1.11x the median shop price)" in rows[DEPOSITO_BAR].note
-    assert "garrafa_600 R$ 8.00 (1.1x)" in rows[DEPOSITO_BAR].note
     assert rows[BAR].decision == "keep"
     assert (rows[TWIN].decision, rows[TWIN].merge_into) == ("merge", "osm:way/5")
     assert rows[TWIN].note.startswith("second pin of “Boteco do Caranguejo”")
@@ -169,7 +167,6 @@ def test_apply_does_what_the_list_says() -> None:
     done = apply(admin_for(fake), REVIEW, nightclubs=["node/7"], dry_run=False)
     assert fake.changes == [
         "patch 1 {'status': 'hidden'}",
-        "patch 2 {'status': 'hidden'}",
         "patch 3 {'status': 'active'}",
         "merge 4 into 5",
         "patch 7 {'kind': 'outro'}",
@@ -184,7 +181,7 @@ def test_a_dry_run_changes_nothing() -> None:
     done = apply(admin_for(fake), REVIEW, dry_run=True)
     assert fake.changes == []
     assert done[0] == f"would hide Completa ({BAKERY}, venue 1)"
-    assert len(done) == 3  # hide, hide (pending), merge
+    assert len(done) == 2  # hide, merge; the pending row is the AI reviewer's
 
 
 def test_apply_goes_ahead_when_overpass_is_down(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -201,46 +198,3 @@ def test_apply_goes_ahead_when_overpass_is_down(monkeypatch: pytest.MonkeyPatch)
     text = review_cli.run_venues("apply", "https://cb.test", "cb_admin", apply_changes=False)
     assert f"would hide Completa ({BAKERY}, venue 1)" in text
     assert "nightclubs skipped: Overpass didn't answer" in text
-
-
-def book_with(**records: dict[str, Any]) -> ShopBook:
-    book = ShopBook(None)
-    for cnpj, fields in records.items():
-        record = book.get(cnpj)
-        for name, value in fields.items():
-            setattr(record, name, value)
-    return book
-
-
-def test_held_back_shops_join_the_list_as_pending() -> None:
-    book = book_with(
-        **{
-            "66777888000190": {
-                "name": "Boteco da Esquina",
-                "bairro": "rio-vermelho",
-                "decision": "review",
-                "reasons": ["micro-entrepreneur (MEI) that OpenStreetMap doesn't map as a bar"],
-                "samples": ["CHOPP BRAHMA 300ML R$ 8.90"],
-            },
-            # Rejected on two signs: stays out.
-            "77888999000101": {"name": "Conveniência 24h", "decision": "reject", "reasons": ["a", "b"]},
-            # Sent before, so live: the audit of live venues covers it.
-            "88999000000112": {"name": "Bar Vivo", "decision": "review", "sent": True},
-            # Already decided by the owner.
-            "99000111000123": {"name": "Bar Decidido", "decision": "review"},
-            # Shown: nothing to review.
-            "11000222000134": {"name": "Bar Bom", "decision": "show"},
-        }
-    )
-    review = {"99000111000123": ReviewRow("99000111000123", "keep", "", "Bar Decidido")}
-    rows = held(book, review, live=["88999000000112"])
-    assert rows == [
-        ReviewRow(
-            "66777888000190",
-            "pending",
-            "",
-            "Boteco da Esquina",
-            "held back: micro-entrepreneur (MEI) that OpenStreetMap doesn't map as a bar; "
-            "bairro rio-vermelho; not on OpenStreetMap; CHOPP BRAHMA 300ML R$ 8.90",
-        )
-    ]
