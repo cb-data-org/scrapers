@@ -432,6 +432,10 @@ class ScrapeRunReport(BaseModel):
     sent: Annotated[int, Field(ge=0)]
     error_count: Annotated[int, Field(ge=0)]
     errors: Annotated[list[Error], Field(max_length=20)]
+    ai_neurons: Annotated[int | None, Field(ge=0, le=1000000)] = None
+    """
+    Workers AI neurons the run spent (estimated from the tokens used); absent or 0 without AI
+    """
 
 
 class LatestRuns(RootModel[dict[str, AwareDatetime | None]]):

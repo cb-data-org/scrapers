@@ -93,6 +93,27 @@ def test_runs_tasks_deduplicates_and_reports(polite: Polite) -> None:
     assert report.finished_at == NOW
 
 
+def test_the_ai_clients_neurons_go_on_the_run_report(polite: Polite) -> None:
+    class Counter:
+        spent = 0.0
+
+    class ReadsWithAI(Menus):
+        def __init__(self, http: PoliteClient) -> None:
+            super().__init__(http)
+            self.ai = Counter()
+
+        def parse(self, fetched: Fetched) -> Iterable[Item]:
+            assert self.ai is not None
+            self.ai.spent += 22.7
+            return super().parse(fetched)
+
+    sink = RecordingSink()
+    report = run(bar(a=deals(1), b=deals(2)), polite, sink, ReadsWithAI)
+    assert report.ai_neurons == 45
+    assert report.to_json()["ai_neurons"] == 45
+    assert run(bar(a=deals(1), b=deals(2)), polite, RecordingSink()).ai_neurons == 0
+
+
 def test_a_limit_stops_after_that_many_tasks(polite: Polite) -> None:
     sink = RecordingSink()
     report = run_adapter(
@@ -270,6 +291,7 @@ def test_ingest_client_reports_runs_in_the_contract_shape() -> None:
     assert received[0]["started_at"].startswith("2026-10-04T16:06:25.538835")
     assert received[0]["finished_at"] is None
     assert len(received[0]["errors"][0]) == 1000
+    assert received[0]["ai_neurons"] == 0
 
 
 def test_ingest_client_reads_last_successful_runs() -> None:

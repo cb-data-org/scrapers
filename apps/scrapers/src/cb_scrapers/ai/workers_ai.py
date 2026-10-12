@@ -5,8 +5,10 @@ drafts in the contract's deal_draft shape, first with `response_format` set to t
 model or the API won't do that, with the schema in the prompt instead. Every draft is validated with the
 generated `DealDraft` model; invalid ones are reported, never fixed silently.
 
-Neurons are what the free plan counts (10,000 a day): Cloudflare prices this model at $0.10 per million input
-tokens and $0.30 per million output tokens, and a neuron costs $0.011 / 1,000.
+Neurons are what the free plan counts (10,000 a day, shared with the Worker): Cloudflare prices this model at
+$0.10 per million input tokens and $0.30 per million output tokens, and a neuron costs $0.011 / 1,000. The
+client adds up what its calls spent in `spent`; an adapter that holds it as `ai` gets that total on its run
+report (`ai_neurons`), and the 09:00 digest counts it with the Worker's own (#213).
 """
 
 import base64
@@ -130,6 +132,8 @@ class WorkersAI:
         self.url = API.format(account=account, model=model)
         self.headers = {"Authorization": f"Bearer {token}"}
         self.client = client
+        #: Neurons this client's calls spent so far (failed calls cost nothing).
+        self.spent = 0.0
 
     def extract(self, image: bytes, media_type: str, mode: Mode = "json_schema") -> Extraction:
         prompt = PROMPT if mode == "json_schema" else PROMPT + JSON_ONLY + json.dumps(drafts_schema())
@@ -173,6 +177,7 @@ class WorkersAI:
         extraction = Extraction(
             mode, text, int(usage.get("prompt_tokens", 0)), int(usage.get("completion_tokens", 0))
         )
+        self.spent += extraction.neurons
         extraction.reasoning = str(message.get("reasoning_content") or message.get("reasoning") or "")
         extraction.drafts, extraction.invalid = parse_drafts(text)
         return extraction

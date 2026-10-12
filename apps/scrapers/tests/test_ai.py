@@ -94,6 +94,14 @@ def test_extract_sends_the_image_and_the_schema_and_counts_neurons() -> None:
     assert round(extraction.neurons, 1) == round(neurons(1000, 500), 1) == 22.7
 
 
+def test_the_client_adds_up_the_neurons_its_calls_spent() -> None:
+    fake = FakeAI({"json_schema": (200, reply([DRAFT]))})
+    ai = workers_ai(fake)
+    ai.extract(b"\xff\xd8jpeg", "image/jpeg")
+    ai.extract(b"\xff\xd8jpeg", "image/jpeg")
+    assert round(ai.spent, 1) == round(2 * neurons(1000, 500), 1)
+
+
 def test_extract_reports_api_errors_and_the_prompt_mode_carries_the_schema() -> None:
     fake = FakeAI(
         {

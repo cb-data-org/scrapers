@@ -34,6 +34,8 @@ class RunReport:
     sent: int = 0
     error_count: int = 0
     errors: list[str] = field(default_factory=list)
+    #: Workers AI neurons the adapter's AI client spent (the free 10,000 a day are shared with the Worker).
+    ai_neurons: int = 0
 
     def add_error(self, message: str) -> None:
         self.error_count += 1
@@ -52,6 +54,7 @@ class RunReport:
             "sent": self.sent,
             "error_count": self.error_count,
             "errors": self.errors,
+            "ai_neurons": self.ai_neurons,
         }
 
 
@@ -86,6 +89,7 @@ def run_adapter(
     report = RunReport(adapter=name, started_at=now())
     seen: set[str] = set()
     batch: list[Item] = []
+    adapter: Adapter | None = None
 
     def flush() -> None:
         if batch:
@@ -131,6 +135,8 @@ def run_adapter(
         if report.status == "ok" and report.error_count:
             report.status = "partial" if report.fetched else "failed"
     report.items = len(seen)
+    if adapter is not None and adapter.ai is not None:
+        report.ai_neurons = round(adapter.ai.spent)
     report.finished_at = now()
     try:
         sink.report(report)

@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, ClassVar, Literal
+from typing import Any, ClassVar, Literal, Protocol
 
 from ..models import Catalog
 from .hashing import content_hash
@@ -83,6 +83,12 @@ class Item:
         return payload
 
 
+class NeuronCounter(Protocol):
+    """What the runner reads from an adapter's AI client (ai.WorkersAI): the neurons spent so far."""
+
+    spent: float
+
+
 class Adapter(ABC):
     """A source. Set `name` and `cadence`, implement `tasks` and `parse`, and decorate the class with
     `@register`. Override `fetch` for anything beyond a GET (sessions, CSRF tokens, POST searches).
@@ -97,6 +103,8 @@ class Adapter(ABC):
     delay: ClassVar[float] = 3.0
     #: Brands, beers, formats and bounds to match against; the runner sets it before the first task.
     catalog: Catalog | None = None
+    #: The Workers AI client, for adapters that read images or text with it: its neurons go on the run report.
+    ai: NeuronCounter | None = None
 
     def __init__(self, http: PoliteClient) -> None:
         self.http = http
