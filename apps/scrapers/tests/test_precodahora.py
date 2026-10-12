@@ -1044,5 +1044,5 @@ def test_a_held_back_bar_on_openstreetmap_keeps_its_prices_off_that_venue(
 
 def test_salvador_shopping_is_a_focus_place_only(monkeypatch: pytest.MonkeyPatch) -> None:
     # The founders campaign's second area (owner, 12 Oct 2026): searchable with CB_FOCUS, a 1 km circle.
-    assert precodahora.PLACES["salvador-shopping"] == (-12.97830, -38.45470, 1)
+    assert precodahora.PLACES["salvador-shopping"] == (-12.97975, -38.45985, 1)
     assert "salvador-shopping" not in precodahora.CITY

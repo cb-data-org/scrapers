@@ -227,8 +227,9 @@ QUARTERS = {
     "wide-ne": (-12.87, -38.33, 12),
 }
 #: Places only searched with CB_FOCUS (owner, 12 Oct 2026: the founders campaign's second area). Salvador
-#: Shopping on Av. Tancredo Neves; 1 km also takes in Shopping da Bahia and the bars around both.
-FOCUS_ONLY = {"salvador-shopping": (-12.97830, -38.45470, 1)}
+#: Shopping (-12.9783, -38.4547) and Shopping da Bahia (-12.9812, -38.4650), 1.1 km apart: the circle sits
+#: between them (each about 550 m from its centre), so 1 km covers both malls and the bars around them.
+FOCUS_ONLY = {"salvador-shopping": (-12.97975, -38.45985, 1)}
 PLACES = {
     **MVP,
     **{name: circle for circles in SMALLER.values() for name, circle in circles.items()},
