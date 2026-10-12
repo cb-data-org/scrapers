@@ -226,12 +226,16 @@ QUARTERS = {
     "wide-nw": (-12.84, -38.50, 12),
     "wide-ne": (-12.87, -38.33, 12),
 }
+#: Places only searched with CB_FOCUS (owner, 12 Oct 2026: the founders campaign's second area). Salvador
+#: Shopping on Av. Tancredo Neves; 1 km also takes in Shopping da Bahia and the bars around both.
+FOCUS_ONLY = {"salvador-shopping": (-12.97830, -38.45470, 1)}
 PLACES = {
     **MVP,
     **{name: circle for circles in SMALLER.values() for name, circle in circles.items()},
     **CITY,
     **WIDE,
     **QUARTERS,
+    **FOCUS_ONLY,
 }
 #: When a word still sells more than both ends of a 1 km circle show (200), it is searched again with these
 #: added ("heineken lata"), as long as that narrows the search; a beer's barcode searches cover the rest.

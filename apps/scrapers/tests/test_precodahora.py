@@ -1040,3 +1040,9 @@ def test_a_held_back_bar_on_openstreetmap_keeps_its_prices_off_that_venue(
     # The OpenStreetMap venue with the CNPJ, for the AI reviewer; its deals by the CNPJ, so they wait with it.
     assert (items[0].data["osm_ref"], items[0].data["cnpj"]) == ("node/2", SABORES)
     assert held_back(items)[0] == "sells beer by the box, pack or keg (1x)"
+
+
+def test_salvador_shopping_is_a_focus_place_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The founders campaign's second area (owner, 12 Oct 2026): searchable with CB_FOCUS, a 1 km circle.
+    assert precodahora.PLACES["salvador-shopping"] == (-12.97830, -38.45470, 1)
+    assert "salvador-shopping" not in precodahora.CITY
