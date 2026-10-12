@@ -228,8 +228,12 @@ def main(argv: list[str] | None = None) -> int:
         PoliteClient(delay=3.0) as http,
     ):
         voters, _ = voters_from_env(client)
+        if not voters:
+            parser.error("set CB_GEMINI_KEY, or CB_CF_ACCOUNT_ID and CB_CF_AI_TOKEN")
         if len(voters) < 2:
-            parser.error("set CB_GEMINI_KEY, CB_CF_ACCOUNT_ID and CB_CF_AI_TOKEN (two models)")
+            # One model still measures that model alone (the per-model table); the combined result needs two
+            # votes, so every answer counts as uncertain until the second key exists.
+            log.warning("only one model is set: the per-model accuracy is the figure to read")
         places_key = os.environ.get("CB_GOOGLE_PLACES_KEY")
         classifier = VenueClassifier(
             voters,
