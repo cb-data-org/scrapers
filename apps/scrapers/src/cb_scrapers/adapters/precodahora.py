@@ -1168,11 +1168,15 @@ class PrecoDaHora(Adapter):
         return bool(litre) and price / (volume / 1000) >= BAR_PRICE_RATIO * litre
 
     def brand_litre_median(self, serving: Serving) -> float | None:
-        """The supermarkets' median price per litre for a brand, across its beers and sizes."""
+        """The supermarkets' median price per litre for a brand, across its beers and sizes: its alcohol-free
+        beers apart from the others, so neither moves the other's median."""
         if serving.brand is None or self.catalog is None:
             return None
-        products = {f"brand:{serving.brand.slug}"} | {
-            f"beer:{beer.slug}" for beer in self.catalog.beers if beer.brand == serving.brand.slug
+        zero = bool(serving.beer and serving.beer.non_alcoholic)
+        products = ({f"brand:{serving.brand.slug}"} if not zero else set()) | {
+            f"beer:{beer.slug}"
+            for beer in self.catalog.beers
+            if beer.brand == serving.brand.slug and beer.non_alcoholic == zero
         }
         litres = [
             price / (int(key.rsplit("_", 1)[1]) / 1000)

@@ -70,6 +70,19 @@ READER = ServingReader(committed_catalog())
         ("CHOPP DA CASA 500ML", None, None, "chopp_500", 500, 1, "single"),
         ("CERVEJA 600ML", None, None, "garrafa_600", 600, 1, "single"),
         ("CERV LATA 350", None, None, "lata_350", 350, 1, "single"),
+        # Alcohol-free: the brand's alcohol-free beer, never its lager (owner, 12 Oct 2026).
+        ("CERV LN HEINEKEN Z ALC 330ML", "heineken", "heineken-zero", "long_neck_330", 330, 1, "single"),
+        ("HEINEKEN 0,0 LN", "heineken", "heineken-zero", "long_neck_330", 330, 1, "single"),
+        ("HEINEKEN 0.0 LT 350ML", "heineken", "heineken-zero", "lata_350", 350, 1, "single"),
+        ("BUD ZERO 330ML", "budweiser", "budweiser-zero", "long_neck_330", 330, 1, "single"),
+        ("CERV BRAHMA CHOPP ZERO LT 350ML", "brahma", "brahma-zero", "lata_350", 350, 1, "single"),
+        ("ITAIPAVA 0% LATA 350ML", "itaipava", "itaipava-zero", "lata_350", 350, 1, "single"),
+        ("CORONA CERO LN 330ML", "corona", "corona-cero", "long_neck_330", 330, 1, "single"),
+        ("CERV AMSTEL S/ALCOOL LT 350ML", "amstel", "amstel-zero", "lata_350", 350, 1, "single"),
+        ("CERVEJA BAVARIA SEM ALCOOL 350ML", "bavaria", "bavaria-zero", "lata_350", 350, 1, "single"),
+        # Antarctica's Sub Zero and Stella's Pure Gold have alcohol.
+        ("CERV ANTARCTICA SUB ZERO LT 350ML", "antarctica", None, "lata_350", 350, 1, "single"),
+        ("STELLA ARTOIS PURE GOLD LN 330ML", "stella-artois", None, "long_neck_330", 330, 1, "single"),
     ],
 )
 def test_reads_servings(
@@ -95,9 +108,8 @@ def test_reads_servings(
 @pytest.mark.parametrize(
     ("description", "reason"),
     [
-        ("CERV LN HEINEKEN Z ALC 330ML", "zero alcohol"),
-        ("HEINEKEN 0,0 LN", "zero alcohol"),
-        ("BUD ZERO 330ML", "zero alcohol"),
+        ("CERV SKOL ZERO LT 350ML", "zero alcohol: not in the catalog"),
+        ("CERVEJA ZERO 350ML", "zero alcohol: no brand"),
         ("HEINEKEN LN 330ML HAPPY HOUR", "promotion"),
         ("CX CERV SKOL LT 350ML C/12", "pack"),
         ("CERV HEINEKEN 12X350ML", "pack"),

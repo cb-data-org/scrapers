@@ -39,7 +39,8 @@ draft per size, each with its volume_ml. A line naming several beers at one pric
 ("AMSTEL E ORIGINAL R$ 14,90", "Skol/Brahma") is one draft per beer at that price. A size in a section's
 heading ("CERVEJAS 600ML") applies to every beer under it. Write a beer's usual name when the menu misspells
 it ("Stela" is Stella Artois). Skip lines that are crossed out or marked as sold out. Ignore food, soft
-drinks, water, juices, spirits, wine and cocktails. If there is no beer price, return no drafts.
+drinks, water, juices, spirits, wine and cocktails. Alcohol-free beers are beers too: keep "0.0", "Zero" or
+"sem álcool" in the beer's name ("Heineken 0.0"). If there is no beer price, return no drafts.
 
 For each draft:
 - beer: the beer as written (e.g. "Brahma Duplo Malte"); brand: just the brand ("Brahma") when clear,

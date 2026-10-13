@@ -864,6 +864,32 @@ def test_beer_at_bar_prices_lists_as_a_bar_price_whatever_the_shop(adapter: Prec
     assert ("cnpj:33444555000166", 9.0) in deals and ("cnpj:33444555000166", 3.5) not in deals
 
 
+def test_alcohol_free_beers_list_as_their_own_beer_and_keep_out_of_the_lagers_median(
+    adapter: PrecoDaHora,
+) -> None:
+    """Owner, 12 Oct 2026: alcohol-free prices are kept, as the catalog's alcohol-free beer (never the
+    lager), and the shops' cheap Heineken 0.0 doesn't make a butcher's Heineken bottle look like a bar's
+    price."""
+    adapter.stores = True
+    store = shop("SUPERMERCADO BOM PRECO LTDA", "11222333000144", -13.0110, -38.4890)
+    butcher = shop("O BAIANO CHURRASQUEIRO", "33444555000166", -13.0100, -38.4880)
+    items = search(
+        adapter,
+        page(
+            *(sale("CERV HEINEKEN 0,0 LT 350ML", price, store) for price in (2.49, 2.59, 2.69)),
+            *(sale("CERVEJA HEINEKEN LT 350ML", price, store) for price in (4.99, 5.29, 5.49)),
+            sale("HEINEKEN", 13.9, butcher),
+        ),
+    )
+    deals = [item.data for item in items if item.kind == "deal"]
+    zero = [deal for deal in deals if deal["beer"] == "heineken 0 0"]
+    assert sorted(deal["price"] for deal in zero) == [2.49, 2.59, 2.69]
+    assert all(deal["venue_ref"] == "cnpj:11222333000144" for deal in zero)
+    # R$ 13,90 the 600 ml (R$ 23,17/L) is under twice the lager cans' R$ 15,11/L: not a bar's price.
+    assert not any(deal["venue_ref"] == "cnpj:33444555000166" for deal in deals)
+    assert adapter.skipped["zero alcohol"] == 0
+
+
 def test_a_restaurant_that_writes_no_size_still_lists_at_bar_prices(adapter: PrecoDaHora) -> None:
     store = shop("SUPERMERCADO BOM PRECO LTDA", "11222333000144", -13.0110, -38.4890)
     butcher = shop("O BAIANO CHURRASQUEIRO", "33444555000166", -13.0100, -38.4880)

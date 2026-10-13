@@ -337,6 +337,20 @@
       ]
     },
     {
+      "slug": "amstel-zero",
+      "name": "Amstel 0.0",
+      "brand": "amstel",
+      "style": "lager",
+      "abv": 0,
+      "non_alcoholic": true,
+      "aliases": [
+        "amstel 0 0",
+        "amstel 0.0",
+        "amstel sem alcool",
+        "amstel zero"
+      ]
+    },
+    {
       "slug": "antarctica-original",
       "name": "Original",
       "brand": "original",
@@ -368,6 +382,20 @@
       "non_alcoholic": false,
       "aliases": [
         "bavaria premium"
+      ]
+    },
+    {
+      "slug": "bavaria-zero",
+      "name": "Bavaria 0.0%",
+      "brand": "bavaria",
+      "style": "lager",
+      "abv": 0,
+      "non_alcoholic": true,
+      "aliases": [
+        "bavaria 0 0",
+        "bavaria 0.0",
+        "bavaria sem alcool",
+        "bavaria zero"
       ]
     },
     {
@@ -414,6 +442,8 @@
       "non_alcoholic": true,
       "aliases": [
         "brahma 0 0",
+        "brahma 0.0",
+        "brahma sem alcool",
         "brahma zero"
       ]
     },
@@ -438,6 +468,9 @@
       "non_alcoholic": true,
       "aliases": [
         "bud zero",
+        "budweiser 0 0",
+        "budweiser 0.0",
+        "budweiser sem alcool",
         "budweiser zero"
       ]
     },
@@ -450,6 +483,21 @@
       "non_alcoholic": false,
       "aliases": [
         "colorado appia"
+      ]
+    },
+    {
+      "slug": "corona-cero",
+      "name": "Corona Cero",
+      "brand": "corona",
+      "style": "lager",
+      "abv": 0,
+      "non_alcoholic": true,
+      "aliases": [
+        "corona 0 0",
+        "corona 0.0",
+        "corona cero",
+        "corona sem alcool",
+        "corona zero"
       ]
     },
     {
@@ -552,6 +600,8 @@
       "non_alcoholic": true,
       "aliases": [
         "heineken 0 0",
+        "heineken 0.0",
+        "heineken sem alcool",
         "heineken zero"
       ]
     },
@@ -587,6 +637,20 @@
       "aliases": [
         "itaipava 100 malte",
         "itaipava puro malte"
+      ]
+    },
+    {
+      "slug": "itaipava-zero",
+      "name": "Itaipava 0%",
+      "brand": "itaipava",
+      "style": "lager",
+      "abv": 0,
+      "non_alcoholic": true,
+      "aliases": [
+        "itaipava 0 0",
+        "itaipava 0.0",
+        "itaipava sem alcool",
+        "itaipava zero"
       ]
     },
     {

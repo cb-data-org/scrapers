@@ -15,14 +15,15 @@ function readSnapshot(dir) {
     if (!existsSync(path2)) throw new Error(`${path2} is missing: run \`pnpm snapshot\` first`);
     return JSON.parse(readFileSync(path2, "utf8"));
   };
+  const beers = read("v_public_beers");
   return {
     manifest: read("manifest"),
     cities: read("v_public_cities"),
     neighbourhoods: read("v_public_neighbourhoods"),
     venues: read("v_public_venues"),
-    deals: read("v_public_deals"),
+    deals: withAlcoholFlag(read("v_public_deals"), beers),
     brands: read("v_public_brands"),
-    beers: read("v_public_beers"),
+    beers,
     formats: read("v_public_formats"),
     priceIndex: read("v_public_price_index"),
     officialSeries: read("v_public_official_series"),
@@ -30,6 +31,12 @@ function readSnapshot(dir) {
     // Newer than some saved snapshots (the end-to-end fixture): none there.
     credits: existsSync(join(dir, "v_public_credits.json")) ? read("v_public_credits") : []
   };
+}
+function withAlcoholFlag(deals, beers) {
+  const free = new Set(beers.filter((beer) => beer.non_alcoholic).map((beer) => beer.slug));
+  return deals.map(
+    (row) => row.non_alcoholic === void 0 || row.non_alcoholic === null ? { ...row, non_alcoholic: free.has(row.beer) ? 1 : 0 } : row
+  );
 }
 
 // packages/domain/src/formats.ts
@@ -486,7 +493,14 @@ var COPY = {
     sponsored: "Patrocinado",
     sponsoredCheapest: "Pre\xE7o mais baixo do bar",
     sponsoredHow: "Como funciona o patroc\xEDnio",
-    freeSlot: "\xC9 dono de bar? Este espa\xE7o pode ser seu."
+    freeSlot: "\xC9 dono de bar? Este espa\xE7o pode ser seu.",
+    alcohol: "Com ou sem \xE1lcool",
+    withAlcohol: "Com \xE1lcool",
+    alcoholFree: "Sem \xE1lcool",
+    alcoholFreeBadge: "0,0%",
+    alcoholFreeLabel: "Cerveja sem \xE1lcool",
+    alcoholFreeNote: "Cervejas sem \xE1lcool (0,0%), num ranking s\xF3 delas, do litro mais barato ao mais caro.",
+    noAlcoholFree: "Ainda sem pre\xE7o de cerveja sem \xE1lcool por aqui. Viu um? Manda pra gente."
   },
   en: {
     title: (city) => `Cheapest beer in ${city} today`,
@@ -585,7 +599,14 @@ var COPY = {
     sponsored: "Sponsored",
     sponsoredCheapest: "The bar's lowest price",
     sponsoredHow: "How sponsorship works",
-    freeSlot: "Own a bar? This spot could be yours."
+    freeSlot: "Own a bar? This spot could be yours.",
+    alcohol: "With or without alcohol",
+    withAlcohol: "With alcohol",
+    alcoholFree: "Alcohol-free",
+    alcoholFreeBadge: "0.0%",
+    alcoholFreeLabel: "Alcohol-free beer",
+    alcoholFreeNote: "Alcohol-free beers (0.0%), ranked on their own, cheapest litre first.",
+    noAlcoholFree: "No alcohol-free beer prices here yet. Seen one? Send it to us."
   }
 };
 
@@ -677,6 +698,7 @@ function toCityDeal(row, venues, credits) {
     lat: value("lat"),
     lng: value("lng"),
     beerName: value("beer_name"),
+    nonAlcoholic: Boolean(row.non_alcoholic),
     brand: value("brand"),
     brandName: value("brand_name"),
     formatCode: value("format_code"),
@@ -705,8 +727,10 @@ function listable(deal, now, timeZone) {
   if (deal.category !== "bar") return now - deal.verifiedAt <= SHOP_PRICE_DAYS * 86400;
   return inRankings(freshnessOf(deal.verifiedAt, now, timeZone));
 }
-function rankDeals(deals, now, timeZone, category = "bar") {
-  return deals.filter((deal) => deal.category === category && deal.kind !== "open_bar" && listable(deal, now, timeZone)).sort(
+function rankDeals(deals, now, timeZone, category = "bar", alcoholFree = false) {
+  return deals.filter(
+    (deal) => deal.category === category && deal.nonAlcoholic === alcoholFree && deal.kind !== "open_bar" && listable(deal, now, timeZone)
+  ).sort(
     (a, b) => a.ppnMinor - b.ppnMinor || a.priceMinor - b.priceMinor || a.venueName.localeCompare(b.venueName, "pt-BR")
   );
 }
@@ -740,15 +764,15 @@ var generatedAtOf = (data) => Math.floor(Date.parse(data.manifest.generated_at) 
 function cityRankings(data) {
   const generatedAt = generatedAtOf(data);
   const venues = new Map(data.venues.map((row) => [row.id, row]));
-  return data.cities.map((city) => ({
-    city,
-    generatedAt,
-    ranked: rankDeals(
-      data.deals.filter((row) => row.city === city.slug).map((row) => toCityDeal(row, venues)),
+  return data.cities.map((city) => {
+    const deals = data.deals.filter((row) => row.city === city.slug).map((row) => toCityDeal(row, venues));
+    return {
+      city,
       generatedAt,
-      city.timezone
-    )
-  }));
+      ranked: rankDeals(deals, generatedAt, city.timezone),
+      alcoholFree: rankDeals(deals, generatedAt, city.timezone, "bar", true)
+    };
+  });
 }
 function bairroPages(rankings) {
   return rankings.flatMap((ranking2) => {
@@ -759,6 +783,7 @@ function bairroPages(rankings) {
     return [...byBairro].filter(([, deals]) => new Set(deals.map((deal) => deal.venueId)).size >= BAIRRO_MIN_VENUES).map(([slug, deals]) => ({
       ...ranking2,
       ranked: deals,
+      alcoholFree: (ranking2.alcoholFree ?? []).filter((deal) => deal.bairro === slug),
       bairro: { slug, name: deals[0]?.bairroName ?? slug }
     }));
   });
@@ -790,6 +815,7 @@ function fromPublicDatasets({ updatedAt, city, deals, venues }) {
         ...row,
         city: city.slug,
         on_site: flag(row.on_site),
+        non_alcoholic: flag(row.non_alcoholic) ?? 0,
         schedules: JSON.stringify(row.schedules ?? [])
       })
     )

@@ -6,8 +6,10 @@ Chopp in a 600 ml bottle · "CHOPP PILSEN 300ML" → a chopp 300 ml of no named 
 
 The keywords follow parseServing in @cb/domain (packages/domain/src/parse.ts), which reads the same kind of
 line in the Worker. This reader is stricter because what it accepts may publish by itself: retail packs and
-kegs, zero-alcohol beers, two brands in one line, promotions, buckets of unknown size and sizes the catalog
-doesn't have come back as a reason (NotAServing) instead of a guess.
+kegs, two brands in one line, promotions, buckets of unknown size and sizes the catalog doesn't have come
+back as a reason (NotAServing) instead of a guess. Alcohol-free beers ("HEINEKEN 0.0 LN", "CERV BRAHMA ZERO
+LT", "ITAIPAVA 0% 350ML") are their brand's alcohol-free beer in the catalog (non_alcoholic), never its
+lager; one the catalog lacks comes back as "zero alcohol: not in the catalog".
 """
 
 import re
@@ -102,7 +104,14 @@ _VOLUME = re.compile(r"(?<![\d.,])(\d+(?:[.,]\d+)?) ?(ml|l|lt|lts|ltr|litros?)(?
 _BARE_NUMBER = re.compile(r"(?<![\d.,])(\d{3,4})(?![\d.,]| ?(?:x|un|und|unid)\b)")
 #: A beer without a brand: only these words, with a written size, make a serving of no named brand.
 _GENERIC = re.compile(r" (cervejas?|chopps?|chopes?|choppe|chop) ")
-_ZERO = re.compile(r" (zero|0 0|00|sem alcool|s alc\w*|z alc\w*|n alc\w*|s alcool) ")
+#: Alcohol-free, as receipts write it (in words): "0 0", "zero", "cero", "sem alcool", "s alc"…
+#: Antarctica's "Sub Zero" has alcohol. isAlcoholFree in @cb/domain (packages/domain/src/parse.ts) reads the
+#: same words.
+_ZERO = re.compile(r"(?<! sub) (zero|cero|0 0|00|sem alc\w*|s alc\w*|z alc\w*|n alc\w*|nao alc\w*) ")
+#: "0,0" and "0.0" in plain text, left out when reading the size.
+_ZERO_MARK = re.compile(r"(?<![\d.,])0[.,]0(?![\d.,]*\d)")
+#: "0%" and "0,0%", before the % sign is lost.
+_ZERO_PERCENT = re.compile(r"(?<![\d.,])0(?:[.,]0)? ?%")
 _PROMOTION = re.compile(
     r" (promo\w*|happy|hh|dobro|dobradinha|2x1|2 x 1|2 por 1|leve|compre|combo|cortesia) "
 )
@@ -162,17 +171,17 @@ class ServingReader:
         bars sell by default, with its volume left as assumed (None), so the price waits for review."""
         text = plain(description)
         padded = words(text)
-        if _ZERO.search(padded):
-            raise NotAServing("zero alcohol")
+        zero = bool(_ZERO.search(padded) or _ZERO_PERCENT.search(description))
         if _PROMOTION.search(padded):
             raise NotAServing("promotion")
         if _RETAIL.search(padded):
             raise NotAServing("pack")
 
-        volume, rest = _volume(text)
+        # "HEINEKEN 0,0 LT 350ML": the 0,0 is no size.
+        volume, rest = _volume(_ZERO_MARK.sub(" ", text) if zero else text)
         brand, brand_alias, beer, beer_alias, rest_words = self._brand(words(rest), generic=True)
-        if beer is not None and beer.non_alcoholic:
-            raise NotAServing("zero alcohol")
+        if zero and (beer is None or not beer.non_alcoholic):
+            beer, beer_alias = self._alcohol_free(brand)
 
         units, packaging = 1, "single"
         if " balde " in padded:
@@ -222,6 +231,15 @@ class ServingReader:
         if code is None:
             raise NotAServing("size not in the catalog")
         return Serving(brand, brand_alias, beer, beer_alias, kind, code, volume, units, packaging)
+
+    def _alcohol_free(self, brand: CatalogBrand | None) -> tuple[CatalogBeer, str]:
+        """The brand's one alcohol-free beer and its first alias ("BRAHMA CHOPP ZERO" is Brahma Zero)."""
+        if brand is None:
+            raise NotAServing("zero alcohol: no brand")
+        found = [beer for beer in self.catalog.beers if beer.brand == brand.slug and beer.non_alcoholic]
+        if len(found) != 1:
+            raise NotAServing("zero alcohol: not in the catalog")
+        return found[0], found[0].aliases[0]
 
     def _brand(
         self, text: str, generic: bool = False

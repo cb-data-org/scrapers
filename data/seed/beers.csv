@@ -1,21 +1,24 @@
 slug,brand,name,style,abv,non_alcoholic,aliases
 brahma-chopp,brahma,Brahma Chopp,lager,,false,brahma chopp|brahma pilsen
 brahma-duplo-malte,brahma,Brahma Duplo Malte,lager,,false,brahma duplo malte|duplo malte
-brahma-zero,brahma,Brahma Zero,lager,0,true,brahma zero|brahma 0 0
+brahma-zero,brahma,Brahma Zero,lager,0,true,brahma zero|brahma 0 0|brahma 0.0|brahma sem alcool
 skol-pilsen,skol,Skol Pilsen,lager,,false,skol pilsen|skol pilsner
 antarctica-pilsen,antarctica,Antarctica Pilsen,lager,,false,antarctica pilsen|antartica pilsen
 antarctica-original,original,Original,lager,,false,cerveja original
 heineken-lager,heineken,Heineken,lager,,false,heineken lager|heineken puro malte
-heineken-zero,heineken,Heineken 0.0,lager,0,true,heineken 0 0|heineken zero
+heineken-zero,heineken,Heineken 0.0,lager,0,true,heineken 0 0|heineken 0.0|heineken zero|heineken sem alcool
 amstel-lager,amstel,Amstel Lager,lager,,false,amstel lager
+amstel-zero,amstel,Amstel 0.0,lager,0,true,amstel 0 0|amstel 0.0|amstel zero|amstel sem alcool
 budweiser-lager,budweiser,Budweiser,lager,,false,budweiser lager|bud lager
-budweiser-zero,budweiser,Budweiser Zero,lager,0,true,budweiser zero|bud zero
+budweiser-zero,budweiser,Budweiser Zero,lager,0,true,budweiser zero|bud zero|budweiser 0 0|budweiser 0.0|budweiser sem alcool
 stella-artois-lager,stella-artois,Stella Artois,lager,,false,stella artois lager
 spaten-munich,spaten,Spaten,lager,,false,spaten munich|spaten munchen
 itaipava-pilsen,itaipava,Itaipava,lager,,false,itaipava pilsen
 itaipava-puro-malte,itaipava,Itaipava 100% Malte,lager,,false,itaipava 100 malte|itaipava puro malte
+itaipava-zero,itaipava,Itaipava 0%,lager,0,true,itaipava 0 0|itaipava 0.0|itaipava zero|itaipava sem alcool
 devassa-tropical,devassa,Devassa Tropical Lager,lager,,false,devassa tropical|devassa tropical lager
 corona-extra,corona,Corona Extra,lager,,false,corona extra
+corona-cero,corona,Corona Cero,lager,0,true,corona cero|corona 0 0|corona 0.0|corona zero|corona sem alcool
 bohemia-pilsen,bohemia,Bohemia,lager,,false,bohemia pilsen
 petra-puro-malte,petra,Petra Puro Malte,lager,,false,petra puro malte
 crystal-pilsen,crystal,Crystal,lager,,false,crystal pilsen
@@ -23,6 +26,7 @@ nova-schin-pilsen,schin,Nova Schin,lager,,false,nova schin pilsen
 imperio-lager,imperio,Império Lager,lager,,false,imperio lager
 kaiser-pilsen,kaiser,Kaiser,lager,,false,kaiser pilsen
 bavaria-premium,bavaria,Bavaria Premium,lager,,false,bavaria premium
+bavaria-zero,bavaria,Bavaria 0.0%,lager,0,true,bavaria 0 0|bavaria 0.0|bavaria zero|bavaria sem alcool
 eisenbahn-pilsen,eisenbahn,Eisenbahn Pilsen,lager,,false,eisenbahn pilsen
 colorado-appia,colorado,Colorado Appia,,,false,colorado appia
 patagonia-amber-lager,patagonia,Patagonia Amber Lager,lager,,false,patagonia amber lager|patagonia amber
