@@ -3,7 +3,9 @@ name: Source probe (manual)
 # One-off, read-only checks of data sources (cb_scrapers.source_probe): venues compares OpenStreetMap with
 # Overture Maps for well-known bars; pdh-api tries Preço da Hora's search with more per page; bars looks for
 # them on Preço da Hora's receipts (cb_scrapers.bar_finder); classify evaluates the venue classifier against the
-# owner's decisions (cb_scrapers.classify_probe; read-only: it never sends a result).
+# owner's decisions (cb_scrapers.classify_probe; read-only: it never sends a result); contacts looks for the
+# business email a bar publishes on its own website or link page (cb_scrapers.contact_probe, the `urls` input):
+# the addresses go only to a 3-day artifact, the log and the summary show counts.
 
 on:
   workflow_dispatch:
@@ -11,8 +13,12 @@ on:
       probe:
         description: Which check
         type: choice
-        options: [venues, pdh-api, pdh-search, bars, menus, platforms, instagram, handles, vision, classify]
+        options: [venues, pdh-api, pdh-search, bars, menus, platforms, instagram, handles, vision, classify, contacts]
         default: venues
+      urls:
+        description: "contacts: comma-separated website or link-page URLs (bar.com.br, linktr.ee/bar)"
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -95,8 +101,13 @@ jobs:
         run: |
           uvx overturemaps download --bbox=-38.70,-13.02,-38.25,-12.80 -f geojsonseq --type=place -o "$RUNNER_TEMP/places.geojsonseq"
           uv run python -m cb_scrapers.classify_probe --overture "$RUNNER_TEMP/places.geojsonseq" --out "$RUNNER_TEMP/probe"
+      - name: Business emails on bars' own pages (counts only in the log)
+        if: inputs.probe == 'contacts'
+        env:
+          CB_URLS: ${{ inputs.urls }}
+        run: uv run python -m cb_scrapers.contact_probe --urls "$CB_URLS" --out "$RUNNER_TEMP/probe" --results "$RUNNER_TEMP/contacts/contacts.json"
       - name: Probe
-        if: inputs.probe != 'bars' && inputs.probe != 'menus' && inputs.probe != 'platforms' && inputs.probe != 'instagram' && inputs.probe != 'handles' && inputs.probe != 'vision' && inputs.probe != 'classify'
+        if: inputs.probe != 'bars' && inputs.probe != 'menus' && inputs.probe != 'platforms' && inputs.probe != 'instagram' && inputs.probe != 'handles' && inputs.probe != 'vision' && inputs.probe != 'classify' && inputs.probe != 'contacts'
         run: uv run python -m cb_scrapers.source_probe "${{ inputs.probe }}" --overture "$RUNNER_TEMP/places.geojsonseq" --out "$RUNNER_TEMP/probe"
       - name: Bars on the receipts
         if: inputs.probe == 'bars'
@@ -104,7 +115,15 @@ jobs:
       - run: cat "$RUNNER_TEMP/probe/report.md" >> "$GITHUB_STEP_SUMMARY"
         if: always()
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && inputs.probe != 'contacts'
         with:
           name: source-probe
           path: ${{ runner.temp }}/probe
+      # The emails stay out of the public log; the artifact holds them for 3 days.
+      - uses: actions/upload-artifact@v4
+        if: always() && inputs.probe == 'contacts'
+        with:
+          name: contacts
+          path: ${{ runner.temp }}/contacts
+          retention-days: 3
+          if-no-files-found: ignore
