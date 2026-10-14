@@ -4,14 +4,19 @@
 (size not written) · "CHOPP HEINEKEN 500ML" → Heineken, chopp 500 ml · "BRAHMA CHOPP 600" → the beer Brahma
 Chopp in a 600 ml bottle · "CHOPP PILSEN 300ML" → a chopp 300 ml of no named brand (only with a written size).
 
+Chopp is draught only where it can be: a can or bottle word beats it ("CHOPP BRAHMA LT 350ML" is a can of
+Brahma Chopp, the beer named after draught), and on a shop's line (`draught=False`) it is that beer's name or
+nothing ("CHOPP BRAHMA 350ML" at a supermarket is the can; "CHOPP 300ML" there is left out).
+
 The keywords follow parseServing in @cb/domain (packages/domain/src/parse.ts), which reads the same kind of
 line in the Worker. This reader is stricter because what it accepts may publish by itself: retail packs and
 kegs, two brands in one line, promotions, buckets of unknown size and sizes the catalog doesn't have come
 back as a reason (NotAServing) instead of a guess, and so do the beer brands' other drinks that some shops
-file under beer ("REFRI ANTARCTICA GUARANA PET 2LT", "SKOL BEATS SENSES LT 269ML"). Alcohol-free beers
-("HEINEKEN 0.0 LN", "CERV BRAHMA ZERO LT", "ITAIPAVA 0% 350ML") are their brand's alcohol-free beer in the
-catalog (non_alcoholic), never its lager; one the catalog lacks comes back as "zero alcohol: not in the
-catalog".
+file under beer ("REFRI ANTARCTICA GUARANA PET 2LT", "SKOL BEATS SENSES LT 269ML", "CHOPP DE VINHO").
+Alcohol-free beers ("HEINEKEN 0.0 LN", "CERV BRAHMA ZERO LT", "ITAIPAVA 0% 350ML") are their brand's
+alcohol-free beer in the catalog (non_alcoholic), never its lager; one the catalog lacks comes back as "zero
+alcohol: not in the catalog". A Malzbier (a sweet dark beer, with alcohol) is likewise its brand's Malzbier
+("CERVEJA MALZBIER GF BRAHMA 355ML"), never its lager: "malzbier: not in the catalog" otherwise.
 """
 
 import re
@@ -78,20 +83,30 @@ ABBREVIATIONS = {
     "eisenb": "eisenbahn",
     "bohem": "bohemia",
     "itaip": "itaipava",
+    "malz": "malzbier",
+    "malzb": "malzbier",
 }
-#: Format keywords, strongest first (a "torre de chopp" is a torre), as in @cb/domain.
+#: The words for draught, which some beers carry in their name: Brahma Chopp, Guinness Draught.
+_DRAUGHT_WORD = re.compile(r" (chopps?|chopes?|choppe|chop|draught|draft) ")
+#: What draught is served in: never a beer's name.
+_VESSEL = re.compile(r" (tulipa|caneca) ")
+#: Format keywords, strongest first: a "torre de chopp" is a torre, and a can or bottle word beats chopp
+#: ("CHOPP BRAHMA LT 350ML" is a can of Brahma Chopp). @cb/domain reads the same words.
 TYPE_KEYWORDS = (
     ("torre", re.compile(r" torres? ")),
-    ("chopp", re.compile(r" (chopps?|chopes?|choppe|chop|tulipa|caneca|draught|draft) ")),
     ("litrao", re.compile(r" litrao ")),
-    ("long_neck", re.compile(r" (long ?necks?|longnecks?|lneck|lnk|ln|l n|long) ")),
+    ("long_neck", re.compile(r" (long ?necks?|longnecks?|l ?necks?|lnk|ln|l n|long) ")),
     ("garrafa", re.compile(r" (garrafas?|garraf|gfa|grf|gf|litrinhos?) ")),
     ("lata", re.compile(r" (latao|latinhas?|latas?|lta|lt|cans?) ")),
+    ("chopp", re.compile(rf"{_DRAUGHT_WORD.pattern}|{_VESSEL.pattern}")),
     ("pint", re.compile(r" pints? ")),
 )
+#: Packaged beer: a can or a bottle.
+CONTAINERS = frozenset({"litrao", "long_neck", "garrafa", "lata"})
 #: Types sold in one standard size, so the volume isn't a guess (as in @cb/domain).
 FIXED_VOLUME = {"garrafa": 600, "litrao": 1000}
-#: Brands whose long neck comes in one size in Brazil, so "HEINEKEN LONG NECK" says 330 ml without writing it.
+#: Brands whose long neck comes in one usual size in Brazil, so "HEINEKEN LONG NECK" says 330 ml without
+#: writing it (the small ones always write theirs: "CERVEJA HEINEKEN LN 250ML", "CERV CORONA EX 210ML").
 LONG_NECK_ML = {
     "heineken": 330,
     "budweiser": 330,
@@ -102,14 +117,18 @@ LONG_NECK_ML = {
 }
 #: Sizes that name their type on their own ("SKOL 600"); chopp and pint sizes need their word. A bare 300 ml
 #: is the returnable "litrinho" bottle ("SKOL PILSEN 300ML"), as in @cb/domain: draught always says chopp.
-#: 550 ml is Itaipava's tall can ("CERVEJA ITAIPAVA 550ML"), 1 litre the returnable litrão ("CERV SKOL 1L").
-TYPE_OF_BARE_VOLUME = {269: "lata", 275: "long_neck", 300: "garrafa", 330: "long_neck", 350: "lata"}
-TYPE_OF_BARE_VOLUME |= {355: "long_neck", 473: "lata", 550: "lata", 600: "garrafa", 1000: "litrao"}
+#: 550 ml is Itaipava's tall can ("CERVEJA ITAIPAVA 550ML"), 1 litre the returnable litrão ("CERV SKOL 1L"),
+#: 210 and 250 ml the small long necks ("CERV IMPERIO PILSEN GOLD 210ML", "HEINEKEN 250ML").
+TYPE_OF_BARE_VOLUME = {210: "long_neck", 250: "long_neck", 269: "lata", 275: "long_neck", 300: "garrafa"}
+TYPE_OF_BARE_VOLUME |= {330: "long_neck", 350: "lata", 355: "long_neck", 473: "lata", 550: "lata"}
+TYPE_OF_BARE_VOLUME |= {600: "garrafa", 1000: "litrao"}
 
 _VOLUME = re.compile(r"(?<![\d.,])(\d+(?:[.,]\d+)?) ?(ml|l|lt|lts|ltr|litros?)(?![a-z])")
 _BARE_NUMBER = re.compile(r"(?<![\d.,])(\d{3,4})(?![\d.,]| ?(?:x|un|und|unid)\b)")
 #: A beer without a brand: only these words, with a written size, make a serving of no named brand.
 _GENERIC = re.compile(r" (cervejas?|chopps?|chopes?|choppe|chop) ")
+#: Malzbier, a sweet dark beer with alcohol: its brand's Malzbier in the catalog, never the brand's lager.
+_MALZBIER = re.compile(r" malzbier ")
 #: Alcohol-free, as receipts write it (in words): "0 0", "zero", "cero", "sem alcool", "s alc"…
 #: Antarctica's "Sub Zero" has alcohol. isAlcoholFree in @cb/domain (packages/domain/src/parse.ts) reads the
 #: same words.
@@ -123,12 +142,14 @@ _PROMOTION = re.compile(
 )
 #: The beer brands' other drinks, which some shops file under beer's NCM and menus list next to beers:
 #: Antarctica's soft drinks ("REFRI ANTARCTICA GUARANA PET 2LT", Soda, Tônica) and Skol Beats (flavoured
-#: drinks). Antarctica's Subzero is beer.
-_NOT_BEER = re.compile(r" (guarana|refri|refrigerantes?|soda|tonica|beats) ")
+#: drinks), and wine "chopp" ("CHOPP DE VINHO PINK MOON PET 600ML"). Antarctica's Subzero is beer.
+_NOT_BEER = re.compile(r" (guarana|refri|refrigerantes?|soda|tonica|beats|vinho) ")
 _RETAIL = re.compile(
-    r" (cx|cxa|caixa|pack|pck|fardo|fd|pct|pacote|kit|engradado|growler|refil|barril|keg|display|bag) "
+    r" (cx|cxa|cxc|caixa|pack|pck|fardo|fd|pct|pacote|kit|engradado|growler|refil|barril|keg|display|bag) "
 )
 _COUNT = re.compile(r" (?:c|com|cx|x) ?(\d{1,2}) | (\d{1,2}) ?(?:x|un|und|unid|unidades|garrafas|latas) ")
+#: A count run into other words: "CERV HEINEKEN PIL 350LT SLEEKDES12UNPB" is a pack of 12.
+_GLUED_COUNT = re.compile(r"(?<![\d.,])(?:[2-9]|[1-9]\d) ?(?:un|und|unid)")
 _MULTIPLY = re.compile(r"(?<![\d.,])\d{1,2} ?x ?\d{2,4}")
 _BALDE_COUNT = re.compile(
     r"balde (?:c/ ?|com |de |c )?(\d{1,2})\b"
@@ -137,10 +158,12 @@ _BALDE_COUNT = re.compile(
 
 
 def plain(text: str) -> str:
-    """Lowercase and accent-free, keeping digits and the separators sizes need: "2,5L" → "2,5l"."""
+    """Lowercase and accent-free, keeping digits and the separators sizes need: "2,5L" → "2,5l". A dot or
+    comma between words is a space: "CERV.SKOL LT.350ML" → "cerv skol lt 350ml"."""
     decomposed = unicodedata.normalize("NFKD", text.lower())
     stripped = "".join(char for char in decomposed if not unicodedata.combining(char))
-    return " ".join(re.sub(r"[^a-z0-9.,/]+", " ", stripped).split())
+    kept = re.sub(r"[^a-z0-9.,/]+", " ", stripped)
+    return " ".join(re.sub(r"(?<!\d)[.,]|[.,](?!\d)", " ", kept).split())
 
 
 def words(text: str) -> str:
@@ -150,11 +173,14 @@ def words(text: str) -> str:
 
 
 def _volume(text: str) -> tuple[int | None, str]:
-    """The written size in ml ("350ML", "2,5L", "1 LT") and the text without it."""
+    """The written size in ml ("350ML", "2,5L", "1 LT") and the text without it. "350 LT" is a 350 ml can (no
+    beer comes in 100 litres), so its LT stays as the can's word."""
     match = _VOLUME.search(text)
     if not match:
         return None, text
     value = float(match.group(1).replace(",", "."))
+    if match.group(2) == "lt" and value >= 100:
+        return round(value), f"{text[: match.start()]} lt {text[match.end() :]}"
     volume = round(value if match.group(2) == "ml" else value * 1000)
     return volume, text[: match.start()] + " " + text[match.end() :]
 
@@ -186,11 +212,20 @@ class ServingReader:
             }
             for brand in catalog.brands
         }
+        self.sizes: dict[str, set[int]] = {}
+        for fmt in catalog.formats:
+            self.sizes.setdefault(fmt.type, set()).add(fmt.volume_ml)
+        #: Each brand's beer named after draught (Brahma → Brahma Chopp), and its Malzbier.
+        self.draught_named = self._named(_DRAUGHT_WORD)
+        self.malzbiers = self._named(_MALZBIER)
+        self.malzbier_slugs = {beer.slug for beer in self.malzbiers.values()}
 
-    def read(self, description: str, assume_bottle: bool = False) -> Serving:
+    def read(self, description: str, assume_bottle: bool = False, draught: bool = True) -> Serving:
         """The serving a description sells, or NotAServing with the reason. With `assume_bottle` (a bar's
         receipt), a named beer with neither size nor type ("HEINEKEN", "CERVEJA AMSTEL") is the 600 ml bottle
-        bars sell by default, with its volume left as assumed (None), so the price waits for review."""
+        bars sell by default, with its volume left as assumed (None), so the price waits for review. Without
+        `draught` (a shop's receipt: shops pour none), chopp is the name of a beer the size packs ("CHOPP
+        BRAHMA 350ML" is a can of Brahma Chopp) or the line is left out ("draught at a shop")."""
         text = plain(description)
         padded = words(text)
         zero = bool(_ZERO.search(padded) or _ZERO_PERCENT.search(description))
@@ -206,6 +241,12 @@ class ServingReader:
         brand, brand_alias, beer, beer_alias, rest_words = self._brand(words(rest), generic=True)
         if zero and (beer is None or not beer.non_alcoholic):
             beer, beer_alias = self._alcohol_free(brand)
+        if _MALZBIER.search(padded) and (beer is None or beer.slug not in self.malzbier_slugs):
+            # "CERVEJA MALZBIER GF BRAHMA 355ML" is Brahma Malzbier; one the catalog lacks is no lager either.
+            malzbier = self.malzbiers.get(brand.slug) if brand and not zero else None
+            if malzbier is None:
+                raise NotAServing("malzbier: not in the catalog")
+            beer, beer_alias = malzbier, malzbier.aliases[0]
 
         units, packaging = 1, "single"
         if " balde " in padded:
@@ -214,16 +255,25 @@ class ServingReader:
             if not 2 <= units <= 12:
                 raise NotAServing("bucket size")
             packaging = "balde"
-        elif _COUNT.search(padded) or _MULTIPLY.search(text):
+        elif _COUNT.search(padded) or _MULTIPLY.search(text) or _GLUED_COUNT.search(text):
             raise NotAServing("pack")
 
         kind = next((name for name, pattern in TYPE_KEYWORDS if pattern.search(rest_words)), None)
+        named = self.draught_named.get(brand.slug) if brand else None
+        if kind in CONTAINERS and beer is None and named and _DRAUGHT_WORD.search(rest_words):
+            # "CHOPP BRAHMA LT 350ML", "CERV BRAHMA CHOPE LT 350ML": a can of Brahma Chopp, never a draught.
+            beer, beer_alias = named, named.aliases[0]
+        elif kind in ("chopp", "torre") and not draught:
+            if kind == "torre" or named is None or _VESSEL.search(rest_words):
+                raise NotAServing("draught at a shop")
+            if beer is None:
+                beer, beer_alias = named, named.aliases[0]
+            kind = None  # the size says can or bottle: "CHOPP BRAHMA 473ML" is the tall can
         if volume is None:
-            sizes = (
-                {fmt.volume_ml for fmt in self.catalog.formats if fmt.type == kind}
-                if kind
-                else set(TYPE_OF_BARE_VOLUME)
-            )
+            sizes = self.sizes.get(kind, set()) if kind else set(TYPE_OF_BARE_VOLUME)
+            if kind == "garrafa":
+                # "HEINEKEN GARRAFA 330" is a long neck, "BRAHMA GARRAFA 1000" a litrão (below).
+                sizes = sizes | self.sizes.get("long_neck", set()) | self.sizes.get("litrao", set())
             volume = next((int(n) for n in _BARE_NUMBER.findall(rest) if int(n) in sizes), None)
         if kind == "lata" and volume is None and " latao " in rest_words:
             volume = 473
@@ -231,6 +281,9 @@ class ServingReader:
             volume = 300
         if kind == "garrafa" and volume == 1000:
             kind = "litrao"
+        if kind == "garrafa" and volume not in self.sizes.get("garrafa", ()):
+            # "CERV AMSTEL ULTRA GF 330ML": a bottle of a long neck's size is that long neck.
+            kind = "long_neck" if volume in self.sizes.get("long_neck", ()) else kind
         if kind is None and volume is not None:
             kind = TYPE_OF_BARE_VOLUME.get(volume)
             if kind is None:
@@ -255,6 +308,14 @@ class ServingReader:
         if code is None:
             raise NotAServing("size not in the catalog")
         return Serving(brand, brand_alias, beer, beer_alias, kind, code, volume, units, packaging)
+
+    def _named(self, word: re.Pattern[str]) -> dict[str, CatalogBeer]:
+        """Each brand's one beer (with alcohol) whose name carries `word`: Brahma Chopp, Brahma Malzbier."""
+        found: dict[str, list[CatalogBeer]] = {}
+        for beer in self.catalog.beers:
+            if not beer.non_alcoholic and any(word.search(words(alias)) for alias in beer.aliases):
+                found.setdefault(beer.brand, []).append(beer)
+        return {brand: beers[0] for brand, beers in found.items() if len(beers) == 1}
 
     def _alcohol_free(self, brand: CatalogBrand | None) -> tuple[CatalogBeer, str]:
         """The brand's one alcohol-free beer and its first alias ("BRAHMA CHOPP ZERO" is Brahma Zero)."""

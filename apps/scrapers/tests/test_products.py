@@ -195,6 +195,137 @@ def test_explains_what_it_leaves_out(description: str, reason: str) -> None:
     assert error.value.reason == reason
 
 
+# Receipt lines as Salvador's shops and bars write them (the scrapers' logs, Oct 2026). `draught`: a bar's
+# line (True), or a shop's (False): shops pour no draught.
+BAR, SHOP = True, False
+
+
+@pytest.mark.parametrize(
+    ("description", "draught", "brand", "beer", "code", "volume"),
+    [
+        # Brahma Chopp is the beer named after draught: with a can or bottle word, or at a shop, it is packed.
+        ("CERV BRAHMA CHOPP LT 350ML", SHOP, "brahma", "brahma-chopp", "lata_350", 350),
+        ("CERVEJA BRAHMA CHOPP LATA 350ML", SHOP, "brahma", "brahma-chopp", "lata_350", 350),
+        ("BRAHMA CHOPP 473ML", SHOP, "brahma", "brahma-chopp", "lata_473", 473),
+        ("CERV BRAHMA CHOPP LATAO 473ML", SHOP, "brahma", "brahma-chopp", "lata_473", 473),
+        ("CHOPP BRAHMA LT 350ML", SHOP, "brahma", "brahma-chopp", "lata_350", 350),
+        ("CHOPP BRAHMA LT 350ML", BAR, "brahma", "brahma-chopp", "lata_350", 350),
+        ("CERV CHOPP BRAHMA LATA 350ML", SHOP, "brahma", "brahma-chopp", "lata_350", 350),
+        ("CERV BRAHMA CHOPE LT 350ML", SHOP, "brahma", "brahma-chopp", "lata_350", 350),
+        ("CERV BRAHMA CHOP LT 269ML", SHOP, "brahma", "brahma-chopp", "lata_269", 269),
+        ("CERV BRAHMA PILSEN CHOPP LT 350ML", BAR, "brahma", "brahma-chopp", "lata_350", 350),
+        ("BRAHMA CHOPP LN 355ML", BAR, "brahma", "brahma-chopp", "long_neck_355", 355),
+        ("CHOPP BRAHMA 350ML", SHOP, "brahma", "brahma-chopp", "lata_350", 350),
+        ("CHOPP BRAHMA 473ML", SHOP, "brahma", "brahma-chopp", "lata_473", 473),
+        ("CHOPP BRAHMA 300ML", SHOP, "brahma", "brahma-chopp", "garrafa_300", 300),
+        ("CHOPP BRAHMA 350 LT", SHOP, "brahma", "brahma-chopp", "lata_350", 350),
+        ("CERV.BRAHMA CHOPP LT.350ML", SHOP, "brahma", "brahma-chopp", "lata_350", 350),
+        ("CHOPP BRAHMA ZERO 350ML", SHOP, "brahma", "brahma-zero", "lata_350", 350),
+        # Bars pour draught.
+        ("CHOPP 300ML", BAR, None, None, "chopp_300", 300),
+        ("CHOPP BRAHMA 500ML", BAR, "brahma", None, "chopp_500", 500),
+        ("CHOPP BRAHMA 350ML", BAR, "brahma", None, "chopp_350", 350),
+        ("CHOPP BRAHMA 473ML", BAR, "brahma", None, "chopp_473", 473),
+        ("TORRE CHOPP BRAHMA 2,5L", BAR, "brahma", None, "torre_2500", 2500),
+        # A bottle of a long neck's size is that long neck; a garrafa of a litre is a litrão.
+        ("CERV AMSTEL ULTRA GF 330ML", SHOP, "amstel", None, "long_neck_330", 330),
+        ("CERV AMSTEL LAG ULTRA 330ML GFA", SHOP, "amstel", None, "long_neck_330", 330),
+        ("CERVEJA PILSEN CORONA GARRAFA 330ML", SHOP, "corona", None, "long_neck_330", 330),
+        ("CERVEJA IMPERIO LAGER 330ML GARRAFA", SHOP, "imperio", "imperio-lager", "long_neck_330", 330),
+        ("CERVEJA HEINEKEN GARRAFA 330", BAR, "heineken", None, "long_neck_330", 330),
+        ("BRAHMA GARRAFA 1000", BAR, "brahma", None, "litrao_1000", 1000),
+        # The small long necks: Heineken's 250 ml, Império Gold's and Coronita's 210 ml.
+        ("CERVEJA HEINEKEN LN 250ML", SHOP, "heineken", None, "long_neck_250", 250),
+        ("CERVEJA HEINEKEN L NECK 250ML", SHOP, "heineken", None, "long_neck_250", 250),
+        ("CERV HEINEKEN L.NECK 250ML", SHOP, "heineken", None, "long_neck_250", 250),
+        ("HEINEKEN 250ML", BAR, "heineken", None, "long_neck_250", 250),
+        ("CERV IMPERIO LN 210ML", SHOP, "imperio", None, "long_neck_210", 210),
+        ("CERV IMPERIO PILSEN GOLD 210ML", SHOP, "imperio", None, "long_neck_210", 210),
+        ("CERV CORONA EX 210ML", SHOP, "corona", None, "long_neck_210", 210),
+        # Malzbier is its brand's Malzbier, whatever the word order, never the brand's lager.
+        ("BRAHMA MALZBIER LN 355ML", SHOP, "brahma", "brahma-malzbier", "long_neck_355", 355),
+        ("CERVEJA MALZBIER GF BRAHMA 355ML", SHOP, "brahma", "brahma-malzbier", "long_neck_355", 355),
+        ("CERV BRAHMA MALZ LT 350ML", BAR, "brahma", "brahma-malzbier", "lata_350", 350),
+        (
+            "CERVEJA MALZBIER ITAIPAVA GRF 330ML",
+            SHOP,
+            "itaipava",
+            "itaipava-malzbier",
+            "long_neck_330",
+            330,
+        ),
+        # Words run together with dots, and "350 LT" (a 350 ml can: no beer comes in 350 litres).
+        ("CERV.SKOL LT.350ML", SHOP, "skol", None, "lata_350", 350),
+        ("CERV.SKOL LT.269ML", SHOP, "skol", None, "lata_269", 269),
+        ("CERVEJA AMSTEL LAGER 350 LT", SHOP, "amstel", "amstel-lager", "lata_350", 350),
+        ("CERV AMSTEL LAGER 350LT SLEEK", SHOP, "amstel", "amstel-lager", "lata_350", 350),
+    ],
+)
+def test_reads_receipt_lines_where_they_were_sold(
+    description: str, draught: bool, brand: str | None, beer: str | None, code: str, volume: int
+) -> None:
+    serving = READER.read(description, draught=draught)
+    slugs = (serving.brand.slug if serving.brand else None, serving.beer.slug if serving.beer else None)
+    assert (slugs, serving.format_code, serving.volume_ml) == ((brand, beer), code, volume)
+
+
+@pytest.mark.parametrize(
+    ("description", "draught", "reason"),
+    [
+        # A shop's draught is no draught, and no beer either unless chopp is its name.
+        ("CHOPP 300ML", SHOP, "draught at a shop"),
+        ("CHOPP AMSTEL 300ML", SHOP, "draught at a shop"),
+        ("CANECA DE CHOPP BRAHMA 500ML", SHOP, "draught at a shop"),
+        ("TORRE CHOPP BRAHMA 2,5L", SHOP, "draught at a shop"),
+        ("CHOPP BRAHMA 500ML", SHOP, "size without a type"),
+        # Wine "chopp", filed under beer by some shops.
+        ("CHOPP DE VINHO PINK MOON PET 600ML", BAR, "not beer"),
+        ("CHOPP VINHO STEMPEL 600 ML", SHOP, "not beer"),
+        # Brahma Malzbier's long neck is 355 ml: a "335ML" is left to the barcode, never guessed.
+        ("BRAHMA MALZBIER LN 335ML", SHOP, "size not in the catalog"),
+        ("CERV SCHIN MALZBIER LT 350ML", SHOP, "malzbier: not in the catalog"),
+        ("CERVEJA MALZBIER 355ML", BAR, "malzbier: not in the catalog"),
+        # Packs, however they write it.
+        ("CERV HEINEKEN PIL 350LT SLEEKDES12UNPB", SHOP, "pack"),
+        ("CERV IMPERIO LAGER GFA 330ML CXC/12 DESC", SHOP, "pack"),
+    ],
+)
+def test_leaves_out_receipt_lines_it_cannot_tell(description: str, draught: bool, reason: str) -> None:
+    with pytest.raises(NotAServing) as error:
+        READER.read(description, draught=draught)
+    assert error.value.reason == reason
+
+
+def test_names_brahma_chopp_and_malzbier_as_the_ingest_api_knows_them() -> None:
+    can = READER.read("CHOPP BRAHMA LT 350ML", draught=False)
+    malzbier = READER.read("CERVEJA MALZBIER GF BRAHMA 355ML", draught=False)
+    assert (can.brand_alias, can.beer_alias) == ("brahma", "brahma chopp")
+    assert (malzbier.brand_alias, malzbier.beer_alias) == ("brahma", "brahma malzbier")
+    assert can.key == "beer:brahma-chopp|lata_350|1|single"
+
+
+def test_a_catalog_without_the_new_sizes_and_beers_leaves_their_lines_unread() -> None:
+    """Until the production seed adds them, the live catalog the scrapers read first lacks the small long
+    necks and the Malzbiers: their lines stay unread rather than become another size or the brand's lager."""
+    catalog = committed_catalog()
+    older = ServingReader(
+        catalog.model_copy(
+            update={
+                "formats": [f for f in catalog.formats if f.code not in ("long_neck_210", "long_neck_250")],
+                "beers": [beer for beer in catalog.beers if beer.style != "malzbier"],
+            }
+        )
+    )
+    for description, reason in (
+        ("CERVEJA HEINEKEN LN 250ML", "size not in the catalog"),
+        ("CERV IMPERIO PILSEN GOLD 210ML", "size not in the catalog"),
+        ("BRAHMA MALZBIER LN 355ML", "malzbier: not in the catalog"),
+    ):
+        with pytest.raises(NotAServing) as error:
+            older.read(description, draught=False)
+        assert error.value.reason == reason
+
+
 def test_sends_aliases_the_ingest_api_knows() -> None:
     serving = read_serving("CERV ORIG 600", committed_catalog())
     catalog = committed_catalog()
@@ -213,6 +344,7 @@ def test_a_beer_of_no_named_brand_sends_none() -> None:
 
 def test_text_forms() -> None:
     assert plain("  Cerveja  BRAHMA Lata 2,5L! ") == "cerveja brahma lata 2,5l"
+    assert plain("CERV.SKOL LT.350ML, HEINEKEN 0.0") == "cerv skol lt 350ml heineken 0.0"
     assert words("cerv.heinek l.n.") == " cerveja heineken l n "
 
 

@@ -2,6 +2,7 @@ slug,brand,name,style,abv,non_alcoholic,aliases
 brahma-chopp,brahma,Brahma Chopp,lager,,false,brahma chopp|brahma pilsen
 brahma-duplo-malte,brahma,Brahma Duplo Malte,lager,,false,brahma duplo malte|duplo malte
 brahma-zero,brahma,Brahma Zero,lager,0,true,brahma zero|brahma 0 0|brahma 0.0|brahma sem alcool
+brahma-malzbier,brahma,Brahma Malzbier,malzbier,,false,brahma malzbier|malzbier brahma
 skol-pilsen,skol,Skol Pilsen,lager,,false,skol pilsen|skol pilsner
 antarctica-pilsen,antarctica,Antarctica Pilsen,lager,,false,antarctica pilsen|antartica pilsen
 antarctica-subzero,antarctica,Antarctica Subzero,lager,,false,antarctica subzero|antarctica sub zero|antartica subzero|antartica sub zero|subzero
@@ -17,6 +18,7 @@ spaten-munich,spaten,Spaten,lager,,false,spaten munich|spaten munchen
 itaipava-pilsen,itaipava,Itaipava,lager,,false,itaipava pilsen
 itaipava-puro-malte,itaipava,Itaipava 100% Malte,lager,,false,itaipava 100 malte|itaipava puro malte
 itaipava-zero,itaipava,Itaipava 0%,lager,0,true,itaipava 0 0|itaipava 0.0|itaipava zero|itaipava sem alcool
+itaipava-malzbier,itaipava,Itaipava Malzbier,malzbier,,false,itaipava malzbier|malzbier itaipava
 devassa-tropical,devassa,Devassa Tropical Lager,lager,,false,devassa tropical|devassa tropical lager
 corona-extra,corona,Corona Extra,lager,,false,corona extra
 corona-cero,corona,Corona Cero,lager,0,true,corona cero|corona 0 0|corona 0.0|corona zero|corona sem alcool

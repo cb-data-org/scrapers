@@ -449,6 +449,18 @@
       ]
     },
     {
+      "slug": "brahma-malzbier",
+      "name": "Brahma Malzbier",
+      "brand": "brahma",
+      "style": "malzbier",
+      "abv": null,
+      "non_alcoholic": false,
+      "aliases": [
+        "brahma malzbier",
+        "malzbier brahma"
+      ]
+    },
+    {
       "slug": "brahma-zero",
       "name": "Brahma Zero",
       "brand": "brahma",
@@ -632,6 +644,18 @@
       ]
     },
     {
+      "slug": "itaipava-malzbier",
+      "name": "Itaipava Malzbier",
+      "brand": "itaipava",
+      "style": "malzbier",
+      "abv": null,
+      "non_alcoholic": false,
+      "aliases": [
+        "itaipava malzbier",
+        "malzbier itaipava"
+      ]
+    },
+    {
       "slug": "itaipava-pilsen",
       "name": "Itaipava",
       "brand": "itaipava",
@@ -791,6 +815,22 @@
       "volume_ml": 550,
       "label_pt": "Latão 550 ml",
       "label_en": "Tall can 550 ml",
+      "aliases": []
+    },
+    {
+      "code": "long_neck_210",
+      "type": "long_neck",
+      "volume_ml": 210,
+      "label_pt": "Long neck 210 ml",
+      "label_en": "Bottle 210 ml",
+      "aliases": []
+    },
+    {
+      "code": "long_neck_250",
+      "type": "long_neck",
+      "volume_ml": 250,
+      "label_pt": "Long neck 250 ml",
+      "label_en": "Bottle 250 ml",
       "aliases": []
     },
     {
@@ -997,6 +1037,8 @@
     "half_pint": 284
   },
   "type_by_volume_ml": {
+    "210": "long_neck",
+    "250": "long_neck",
     "269": "lata",
     "275": "long_neck",
     "284": "half_pint",

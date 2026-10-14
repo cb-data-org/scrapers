@@ -1028,6 +1028,93 @@ def test_a_barcode_needs_agreement_before_it_reads_anything(tmp_path: Path) -> N
     assert precodahora.GtinBook(tmp_path / "gtins.json").searchable() == [CAN]
 
 
+def test_a_barcode_never_reads_as_draught(tmp_path: Path) -> None:
+    """A code is on a can or a bottle: the votes for a chopp that shops' cans of Brahma Chopp cast before Oct
+    2026 are dropped, and a bar's draught never votes."""
+    brahma_can = "7891149010509"
+    (tmp_path / "gtins.json").write_text(
+        json.dumps(
+            {
+                CAN: {"heineken||chopp_350": 3, "heineken||lata_350": 2},
+                brahma_can: {"brahma||chopp_350": 4},
+            }
+        ),
+        "utf-8",
+    )
+    book = precodahora.GtinBook(tmp_path / "gtins.json")
+    assert book.votes == {CAN: precodahora.Counter({"heineken||lata_350": 2})}
+    assert book.serving(CAN, committed_catalog()).format_code == "lata_350"
+    reader = precodahora.ServingReader(committed_catalog())
+    for _ in range(3):
+        book.vote(brahma_can, reader.read("CHOPP BRAHMA 300ML"))  # a bar's draught
+    assert brahma_can not in book.votes
+
+
+def test_shops_pour_no_draught_their_chopp_is_a_can_of_brahma_chopp(adapter: PrecoDaHora) -> None:
+    """Supermarkets' "CHOPP BRAHMA 350ML" at R$ 4,29 listed as draught (Oct 2026): a shop's chopp is the beer
+    Brahma Chopp, which its size packs, or nothing. A bar's chopp is still a draught."""
+    adapter.stores = True
+    store = shop("SUPERMERCADO BOM PRECO LTDA", "11222333000144", -13.0110, -38.4890)
+    deposito = shop("DEPOSITO DE BEBIDAS RIO VERMELHO", "55666777000188", -13.0105, -38.4895)
+    items = search(
+        adapter,
+        page(
+            sale("CHOPP BRAHMA 350ML", 4.29, store),
+            sale("CERV BRAHMA CHOPE LT 473ML", 4.99, store),
+            sale("CHOPP BRAHMA 300ML", 2.89, store),
+            sale("CHOPP 350ML", 4.59, store),
+            sale("CHOPP BRAHMA 350 LT", 5.3, deposito),  # a can, not a 350 litre keg
+            sale("CHOPP BRAHMA EXPRESS 5L", 59.9, deposito),  # a keg, to take away
+            sale("CHOPP BRAHMA 350ML", 9.9, ZE_SHOP),
+        ),
+    )
+    deals = sorted(
+        (deal["venue_ref"], deal["beer"], deal["format"], deal["volume_ml"], deal["price"])
+        for deal in (item.data for item in items if item.kind == "deal")
+    )
+    assert deals == [
+        ("cnpj:11222333000144", "brahma chopp", "garrafa", 300, 2.89),
+        ("cnpj:11222333000144", "brahma chopp", "lata", 350, 4.29),
+        ("cnpj:11222333000144", "brahma chopp", "lata", 473, 4.99),
+        ("cnpj:55666777000188", "brahma chopp", "lata", 350, 5.3),
+        ("osm:node/1", None, "chopp", 350, 9.9),
+    ]
+    assert adapter.skipped["draught at a shop"] == 1
+    assert adapter.skipped["sold by the box, pack or keg"] == 1
+    assert adapter.unread == {"CHOPP 350ML": 1}
+
+
+def test_a_shops_chopp_and_an_odd_size_are_read_by_their_barcode(adapter: PrecoDaHora) -> None:
+    """The barcode says which can a shop's "CHOPP HEINEKEN 350ML" is, and which bottle its "LN 335ML" of
+    Brahma Malzbier is (a 355 ml long neck): never a draught, nor a size no bottle has."""
+    adapter.stores = True
+    store = shop("SUPERMERCADO BOM PRECO LTDA", "11222333000144", -13.0110, -38.4890)
+    malzbier = "7891149108718"
+    items = search(
+        adapter,
+        page(
+            sale("CERVEJA HEINEKEN LT 350ML", 4.99, store, gtin=CAN),
+            sale("CERV LT HEINEKEN 350", 5.19, store, gtin=CAN),
+            sale("CHOPP HEINEKEN 350ML", 5.29, store, gtin=CAN),
+            sale("BRAHMA MALZBIER LN 355ML", 5.49, store, gtin=malzbier),
+            sale("CERVEJA MALZBIER GF BRAHMA 355ML", 5.59, store, gtin=malzbier),
+            sale("BRAHMA MALZBIER LN 335ML", 5.69, store, gtin=malzbier),
+        ),
+        key="chopp @ rio-vermelho cheap",
+    )
+    deals = [item.data for item in items if item.kind == "deal"]
+    assert sorted((deal["price"], deal["beer"], deal["format"], deal["volume_ml"]) for deal in deals) == [
+        (4.99, None, "lata", 350),
+        (5.19, None, "lata", 350),
+        (5.29, None, "lata", 350),
+        (5.49, "brahma malzbier", "long_neck", 355),
+        (5.59, "brahma malzbier", "long_neck", 355),
+        (5.69, "brahma malzbier", "long_neck", 355),
+    ]
+    assert adapter.skipped["read by its barcode"] == 2
+    assert not adapter.unread
+
+
 def test_the_barcodes_searched_cover_every_product_before_a_second_code(tmp_path: Path) -> None:
     """A brand the words have only just found gets its barcode searched, although the brands searched since
     the start have more codes, each with more votes from their own searches."""

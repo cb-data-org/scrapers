@@ -308,8 +308,15 @@ NO_RESULTS = 50
 #: Sold by the unit ("UN", "UND", "UN0001"…) or by the box, pack or bale ("CX", "FD", "PCT"…).
 SINGLE_UNIT = re.compile(r"^(UN|UND|UNID|UNIDADE|U)\d*$")
 PACK_UNIT = re.compile(r"^(CX|CXA|CXT|FD|FARDO|PCT|PK|PACK|EMB|DZ)")
-#: Draught to take away: kegs of 5 litres or more, and barrels.
-KEG = re.compile(r"\b(barril|keg)\b|\bchop+e?\b.*?\b([5-9]|[1-9]\d+) ?(l|lt|lts|litros?)\b")
+#: Draught to take away: kegs of 5 to 99 litres, and barrels ("CHOPP BRAHMA 350 LT" is a can, not a keg).
+KEG = re.compile(r"\b(barril|keg)\b|\bchop+e?\b.*?\b([5-9]|[1-9]\d) ?(l|lt|lts|litros?)\b")
+#: Draught is poured, never packed: a barcode never sells one.
+DRAUGHT_TYPES = frozenset({"chopp", "torre"})
+#: Why a line can't be read on its own, so its barcode may say what it sells: a shop's "CHOPP HEINEKEN 350ML"
+#: is no draught, and the barcode knows which can it is.
+UNREAD = frozenset(
+    {"no brand", "no size", "size without a type", "size not in the catalog", "draught at a shop"}
+)
 #: Shops that never serve on site, told by name so they cost no CNPJ lookup.
 RETAIL = re.compile(
     r"\b(super ?mercados?|hiper ?mercados?|mini ?mercados?|mercadinho|atacad\w*|atakarejo|atacarejo|assai"
@@ -475,7 +482,9 @@ class GtinBook:
     """What each barcode sells, learnt from receipts whose description reads clearly ("CERV HEINEKEN LT
     350ML"): a manufacturer's code is the same in every shop, however each shop writes the product (owner,
     11 Oct 2026).
-    A code reads as its serving once two sales agree and three in four do."""
+    A code reads as its serving once two sales agree and three in four do. A code is on a can or a bottle, so
+    it never reads as draught: votes for one (shops' cans of Brahma Chopp read as chopp before Oct 2026) are
+    dropped."""
 
     def __init__(self, path: Path | None) -> None:
         self.path = path
@@ -485,10 +494,16 @@ class GtinBook:
             self.votes = {code: Counter(keys) for code, keys in saved.items()}
         except (OSError, ValueError, TypeError, AttributeError):
             self.votes = {}
+        for code, keys in list(self.votes.items()):
+            for key in [key for key in keys if key.rsplit("|", 1)[-1].rsplit("_", 1)[0] in DRAUGHT_TYPES]:
+                del keys[key]
+            if not keys:
+                del self.votes[code]
 
     @staticmethod
     def key(serving: Serving) -> str | None:
-        if serving.brand is None or serving.units != 1 or serving.packaging != "single":
+        packed = serving.units == 1 and serving.packaging == "single" and serving.format not in DRAUGHT_TYPES
+        if serving.brand is None or not packed:
             return None
         return f"{serving.brand.slug}|{serving.beer.slug if serving.beer else ''}|{serving.format_code}"
 
@@ -1021,15 +1036,18 @@ class PrecoDaHora(Adapter):
         serving = None
         code = gtin_of(product)
         try:
-            # Bars write "HEINEKEN" for their 600 ml bottle; shops' lines without a size stay unread.
+            # Bars write "HEINEKEN" for their 600 ml bottle; shops' lines without a size stay unread. Shops
+            # pour no draught: their "CHOPP BRAHMA 350ML" is a can of Brahma Chopp.
             on_site = shop.candidate or (
                 shop.company is not None and shop.category is None and not shop.retail
             )
-            serving = None if takeaway else self.reader.read(description, assume_bottle=on_site)
+            serving = (
+                None if takeaway else self.reader.read(description, assume_bottle=on_site, draught=on_site)
+            )
             if serving is not None and code and serving.volume_ml is not None:
                 self.gtins.vote(code, serving)
         except NotAServing as error:
-            unread = error.reason in ("no brand", "no size", "size without a type", "size not in the catalog")
+            unread = error.reason in UNREAD
             known = self.gtins.serving(code, self.catalog) if code and unread else None
             if known is not None:
                 # The text doesn't say, the barcode does ("CERV HEINEKEN SLEEK" is the 350 ml can).

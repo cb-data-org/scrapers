@@ -52,6 +52,9 @@ var FORMATS = [
   format("lata", 473, "Lat\xE3o 473 ml", "Tall can 473 ml"),
   // Itaipava's tall can ("CERV LT ITAIPAVA PIL 550ML" on Salvador receipts, Oct 2026).
   format("lata", 550, "Lat\xE3o 550 ml", "Tall can 550 ml"),
+  // The small long necks on Salvador receipts (Oct 2026): Império Gold and Coronita 210 ml, Heineken 250 ml.
+  format("long_neck", 210, "Long neck 210 ml", "Bottle 210 ml"),
+  format("long_neck", 250, "Long neck 250 ml", "Bottle 250 ml"),
   format("long_neck", 275, "Long neck 275 ml", "Bottle 275 ml"),
   format("long_neck", 330, "Long neck 330 ml", "Bottle 330 ml"),
   format("long_neck", 350, "Long neck 350 ml", "Bottle 350 ml"),
@@ -71,6 +74,8 @@ var FORMATS = [
   format("half_pint", 284, "Meio pint 284 ml", "Half pint")
 ];
 var TYPE_BY_VOLUME_ML = {
+  210: "long_neck",
+  250: "long_neck",
   269: "lata",
   275: "long_neck",
   284: "half_pint",
