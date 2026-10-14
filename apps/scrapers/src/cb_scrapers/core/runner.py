@@ -84,7 +84,7 @@ def run_adapter(
 ) -> RunReport:
     """One bad page doesn't sink the run (status "partial"); a block stops the source ("blocked"); a crash or
     a failed send stops everything ("failed"). Items found before a block are still sent. `limit` stops after
-    that many tasks (a trial run)."""
+    that many tasks (a trial run). The adapter's `problems` go on the report as errors (a "partial" run)."""
     name = adapter_cls.name
     report = RunReport(adapter=name, started_at=now())
     seen: set[str] = set()
@@ -126,7 +126,11 @@ def run_adapter(
                     batch.append(item)
                     if len(batch) >= BATCH_SIZE:
                         flush()
+                if adapter.flush_each_task:
+                    flush()
             flush()
+            for problem in adapter.problems:
+                report.add_error(problem)
     except Exception as error:
         report.status = "failed"
         report.add_error(f"run: {type(error).__name__}: {error}")

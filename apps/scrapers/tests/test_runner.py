@@ -135,6 +135,36 @@ def test_sends_in_batches_of_25(polite: Polite) -> None:
     assert report.sent == 60
 
 
+def test_sends_each_tasks_items_before_the_next_task_when_the_adapter_saves_per_task(polite: Polite) -> None:
+    sent_before: list[list[list[str]]] = []
+
+    class SavesPerTask(Menus):
+        flush_each_task = True
+
+        def tasks(self) -> Iterable[Task]:
+            for task in super().tasks():
+                yield task
+                sent_before.append([list(batch) for batch in sink.batches])
+
+    sink = RecordingSink()
+    report = run(bar(a=deals(1, 2), b=deals(3)), polite, sink, SavesPerTask)
+    assert sink.batches == [["menu:1", "menu:2"], ["menu:3"]]
+    # Back in tasks() after a task, its items have gone out.
+    assert sent_before == [[["menu:1", "menu:2"]], [["menu:1", "menu:2"], ["menu:3"]]]
+    assert report.status == "ok"
+
+
+def test_the_adapters_problems_make_the_run_partial(polite: Polite) -> None:
+    class GaveUp(Menus):
+        def tasks(self) -> Iterable[Task]:
+            yield from super().tasks()
+            self.problems.append("the model gave up; the rest waits for the next run")
+
+    report = run(bar(a=deals(1), b=deals(2)), polite, RecordingSink(), GaveUp)
+    assert report.status == "partial"
+    assert report.errors == ["the model gave up; the rest waits for the next run"]
+
+
 def test_a_bad_page_makes_the_run_partial(polite: Polite) -> None:
     site = bar(a="not json", b=deals(7))
     sink = RecordingSink()

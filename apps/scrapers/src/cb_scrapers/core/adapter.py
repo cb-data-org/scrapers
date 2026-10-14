@@ -105,9 +105,14 @@ class Adapter(ABC):
     catalog: Catalog | None = None
     #: The Workers AI client, for adapters that read images or text with it: its neurons go on the run report.
     ai: NeuronCounter | None = None
+    #: Send each task's items before the next task starts, for adapters that save their progress after each
+    #: task (instagram_bd): a run cut short then never loses items it already counted as done.
+    flush_each_task: ClassVar[bool] = False
 
     def __init__(self, http: PoliteClient) -> None:
         self.http = http
+        #: What went wrong beyond one task (a model out of quota): each goes on the run report as an error.
+        self.problems: list[str] = []
 
     @abstractmethod
     def tasks(self) -> Iterable[Task]: ...

@@ -25,7 +25,7 @@
           "type": "null"
         }
       ],
-      "description": "Exact key for the venue: osm:node/123, cnpj:…, cardapioweb:<slug>, instagram:<handle> or venue:<id>; \"new\" for the bar that came with the item (queue payload.venue)"
+      "description": "Exact key for the venue: osm:node/123, cnpj:…, cardapioweb:<slug>, instagram:<handle> or venue:<id>; \"new\" for the bar that came with the item (queue payload.venue); venues:<id>,<id> for one of several (a chain's shared account): a person picks it. A key several venues hold waits for a person too"
     },
     "beer": {
       "anyOf": [

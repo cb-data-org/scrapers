@@ -153,6 +153,11 @@ def main(argv: list[str] | None = None) -> int:
             report.sent,
             report.error_count,
         )
+    blocked = [report.adapter for report in reports if report.status == "blocked"]
+    if blocked and (output := os.environ.get("GITHUB_OUTPUT")):
+        # The scrapers workflow starts no next run after a Preço da Hora block: the schedule tries later.
+        with open(output, "a", encoding="utf-8") as file:
+            file.write(f"blocked={' '.join(blocked)}\n")
     # A block is an expected, reported outcome (the daily digest shows it); only crashes fail the job.
     return 1 if any(report.status == "failed" for report in reports) else 0
 

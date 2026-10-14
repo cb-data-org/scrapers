@@ -7,6 +7,12 @@ name: Scrapers
 # so each run also starts the next one NEXT_RUN_WAIT seconds after it ends (a dispatch, which GITHUB_TOKEN may
 # trigger); the schedule only restarts that chain. One run at a time (the concurrency group): a run waiting its
 # turn replaces any older waiting one.
+# The chain must survive a slow day (14 Oct 2026: Gemini "high demand" kept the Instagram adapter going until the
+# job's time limit, twice, and a cancelled run started no next one): "Run" has its own limit, under the job's, so
+# "Start the next run" always has its time, and it runs after a timeout or a failure too. It stops only after a
+# run of chosen adapters, a Preço da Hora block (403/429, a CAPTCHA, an unexpected page: the schedule tries
+# later) or with nothing configured. A run cancelled by hand chains as well: to stop the chain, disable the
+# workflow (gh workflow disable scrapers.yml).
 # Public repository: GitHub Actions minutes are free.
 on:
   schedule:
@@ -28,7 +34,8 @@ permissions:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    # Set-up (about 2 min) + "Run" (at most 45) + the cache + "Start the next run" (an 8-minute wait).
+    timeout-minutes: 60
     defaults:
       run:
         working-directory: apps/scrapers
@@ -40,6 +47,8 @@ jobs:
       CB_META_TOKEN: ${{ secrets.CB_META_TOKEN }}
       CB_IG_USER_ID: ${{ vars.CB_IG_USER_ID }}
       CB_GEMINI_KEY: ${{ secrets.CB_GEMINI_KEY }}
+      # Minutes the Instagram adapter may spend a run (empty: its default, 15).
+      CB_IG_BUDGET_MIN: ${{ vars.CB_IG_BUDGET_MIN }}
       # The venue classifier's second vote (Workers AI) and its extra evidence (Google Places: only place ids kept).
       CB_CF_AI_TOKEN: ${{ secrets.CB_CF_AI_TOKEN }}
       CB_CF_ACCOUNT_ID: ${{ vars.CB_CF_ACCOUNT_ID }}
@@ -59,6 +68,9 @@ jobs:
           key: scrapers-cache-${{ github.run_id }}
           restore-keys: scrapers-cache-
       - name: Run
+        id: run
+        # Under the job's limit, so the next run always gets started (instagram_bd saves after each account).
+        timeout-minutes: 45
         run: |
           if [ -z "$CB_API_URL" ] || [ -z "$CB_INGEST_TOKEN" ]; then
             echo "::notice::Set the variable CB_API_URL and the secret CB_INGEST_TOKEN to send items."
@@ -75,10 +87,22 @@ jobs:
           path: .scrapers-cache
           key: scrapers-cache-${{ github.run_id }}
       - name: Start the next run
-        if: ${{ !cancelled() && inputs.adapters == '' }}
+        # Also after a timeout, a failure or a cancel; never after a run of chosen adapters.
+        if: ${{ always() && inputs.adapters == '' }}
         env:
           GH_TOKEN: ${{ github.token }}
           NEXT_RUN_WAIT: "480"
+          # Adapters the site refused this run (`cb run` writes them); empty when "Run" was cut short.
+          BLOCKED: ${{ steps.run.outputs.blocked }}
         run: |
+          if [ -z "$CB_API_URL" ] || [ -z "$CB_INGEST_TOKEN" ]; then
+            exit 0
+          fi
+          case " $BLOCKED " in
+            *" precodahora "*)
+              echo "::notice::Preço da Hora was blocked: no next run; the schedule tries again later."
+              exit 0
+              ;;
+          esac
           sleep "$NEXT_RUN_WAIT"
           gh workflow run scrapers.yml --ref "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY"

@@ -329,7 +329,7 @@ class DealDraft(BaseModel):
     """
     venue_ref: Annotated[str | None, Field(max_length=120)]
     """
-    Exact key for the venue: osm:node/123, cnpj:…, cardapioweb:<slug>, instagram:<handle> or venue:<id>; "new" for the bar that came with the item (queue payload.venue)
+    Exact key for the venue: osm:node/123, cnpj:…, cardapioweb:<slug>, instagram:<handle> or venue:<id>; "new" for the bar that came with the item (queue payload.venue); venues:<id>,<id> for one of several (a chain's shared account): a person picks it. A key several venues hold waits for a person too
     """
     beer: Annotated[str | None, Field(max_length=80)]
     """

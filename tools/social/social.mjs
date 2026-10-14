@@ -9,6 +9,16 @@ import { parseArgs } from "node:util";
 // apps/site/src/data/snapshot.ts
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+
+// apps/site/src/data/ptax.ts
+function readPtax(value) {
+  const ptax = value;
+  if (!ptax || typeof ptax.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(ptax.date)) return null;
+  const sell = Number(ptax.sell);
+  return Number.isFinite(sell) && sell > 0.5 && sell < 50 ? { date: ptax.date, sell } : null;
+}
+
+// apps/site/src/data/snapshot.ts
 function readSnapshot(dir) {
   const read = (name) => {
     const path2 = join(dir, `${name}.json`);
@@ -29,7 +39,9 @@ function readSnapshot(dir) {
     officialSeries: read("v_public_official_series"),
     sponsorships: read("v_public_sponsorships"),
     // Newer than some saved snapshots (the end-to-end fixture): none there.
-    credits: existsSync(join(dir, "v_public_credits.json")) ? read("v_public_credits") : []
+    credits: existsSync(join(dir, "v_public_credits.json")) ? read("v_public_credits") : [],
+    // The dollar rate, when the snapshot fetched one (remote builds): English pages show US$ with it.
+    ptax: existsSync(join(dir, "ptax.json")) ? readPtax(read("ptax")) : null
   };
 }
 function withAlcoholFlag(deals, beers) {
@@ -208,13 +220,27 @@ function inRankings(freshness) {
 }
 
 // packages/domain/src/lead-messages.ts
-var BADGE = 'Os pre\xE7os entram no site sem ningu\xE9m digitar nada. E marcando "sou dono ou gerente do bar", o {bar} ganha o selo azul de bar verificado ao lado do nome, como no Instagram: quem procura cerveja v\xEA que o bar reivindicou a p\xE1gina e que os pre\xE7os vieram do pr\xF3prio bar. \xC9 de gra\xE7a e n\xE3o muda a posi\xE7\xE3o no ranking, que \xE9 sempre pelo pre\xE7o.';
+var LEAD_BADGE = "o bar ganha de gra\xE7a o selo azul de verificado, como no Instagram.";
+var LEAD_OPT_OUT_LINE = "Se n\xE3o quiserem receber mensagens, \xE9 s\xF3 avisar.";
+var LEAD_POSTS_PROBE = "Tamb\xE9m est\xE1 em teste uma ajuda com os posts do Instagram do bar. Se interessar, contem para a gente.";
 var LEAD_TEMPLATES = {
-  message1: "Oi, pessoal do {bar}! Aqui \xE9 do Cerveja Barata (cervejabarata.com.br), o site onde quem est\xE1 em {city} compara o pre\xE7o da cerveja perto de casa: lata, long neck, garrafa e chopp. {prices_sentence}\n\nPara conferir ou corrigir os pre\xE7os, mandem uma foto do card\xE1pio por este link (n\xE3o pede senha nem pagamento): {menu_link}\n\n" + BADGE,
-  followup: 'Oi, pessoal do {bar}! Passando de novo: o link para mandar a foto do card\xE1pio continua valendo: {menu_link}\n\nCom a foto, os pre\xE7os entram no site sem ningu\xE9m digitar nada, e marcando "sou dono ou gerente do bar" o {bar} ganha o selo azul de bar verificado. \xC9 de gra\xE7a e n\xE3o muda a posi\xE7\xE3o no ranking, que \xE9 sempre pelo pre\xE7o.',
-  message2: 'Que bom ter o {bar} com a gente! Uma proposta para os primeiros bares:\n\nDestaque de fundador: um cart\xE3o "Patrocinado" no topo da {bairro_page}, um bar por p\xE1gina. O ranking n\xE3o muda: ningu\xE9m paga para subir. Junto vem, todo m\xEAs a partir de janeiro, o Raio-X de pre\xE7o do {bar}: quanto a sua cerveja custa contra a m\xE9dia do bairro, no mesmo tamanho (a 600 com a 600, o chopp com o chopp), e quem est\xE1 mais barato perto de voc\xEA.\n\n\xC9 gr\xE1tis do lan\xE7amento (10/12) at\xE9 janeiro, e nada \xE9 cobrado sozinho: em janeiro a gente pergunta se voc\xEAs querem continuar por R$ 250 por m\xEAs, no Pix, sem fidelidade, com o pre\xE7o de fundador travado por 12 meses. Se n\xE3o quiserem, o cart\xE3o sai e a p\xE1gina do bar continua igual.\n\nPosso reservar a {bairro_page} para voc\xEAs? \xC9 s\xF3 responder "sim" aqui, ou usar o link: {founders_link}',
-  offer_followup: "Oi, pessoal do {bar}! S\xF3 lembrando do destaque de bar fundador: gr\xE1tis at\xE9 janeiro, sem nada cobrado sozinho (em janeiro a gente pergunta se voc\xEAs querem continuar por R$ 250 por m\xEAs, sem fidelidade), e o ranking continua pelo pre\xE7o. As vagas s\xE3o uma por p\xE1gina; para reservar: {founders_link}\n\nEstamos testando tamb\xE9m ajuda com posts para o Instagram do bar. Se isso interessa, contem pra gente o que mais pesa na semana de voc\xEAs."
+  message1: `Oi, {bar}! Aqui \xE9 o Cerveja Barata (cervejabarata.com.br), que compara o pre\xE7o da cerveja nos bares de {city}. {prices_sentence}
+
+Respondam RAIO-X e a gente manda, s\xF3 para voc\xEAs, {raiox_offer}.
+
+Para p\xF4r todas as cervejas no site, mandem uma foto do card\xE1pio (n\xE3o pede senha nem pagamento): {menu_link}
+A IA l\xEA os pre\xE7os, voc\xEAs s\xF3 conferem, e ${LEAD_BADGE}
+
+` + LEAD_OPT_OUT_LINE,
+  followup: "Oi, {bar}! Voltando ao Raio-X: respondam RAIO-X e a gente manda, s\xF3 para voc\xEAs, {raiox_offer}.\n\nO link da foto do card\xE1pio continua o mesmo (n\xE3o pede senha nem pagamento): {menu_link}\nUm detalhe: o selo de verificado vale por seis meses, se renova a cada card\xE1pio novo e n\xE3o mexe no ranking.\n\n" + LEAD_OPT_OUT_LINE,
+  message2: 'Oi, {bar}! Obrigado pelo retorno.\n\nPara os primeiros bares, o Destaque de fundador: um cart\xE3o "Patrocinado" no topo da {bairro_page}, um bar por p\xE1gina, e a partir de janeiro de 2027 o Raio-X de pre\xE7o todo m\xEAs (o litro de voc\xEAs ao lado da m\xE9dia do bairro, no mesmo tamanho). Ningu\xE9m paga para subir no ranking.\n\nGr\xE1tis do lan\xE7amento (10/12/2026) at\xE9 31/01/2027. Nada \xE9 cobrado sem um novo sim de voc\xEAs: em janeiro, a gente pergunta se querem continuar a partir de fevereiro, a R$ 250 por m\xEAs, no Pix, sem fidelidade e com o pre\xE7o travado por 12 meses. Se n\xE3o, o cart\xE3o sai e a p\xE1gina do bar fica igual.\n\nA gente reserva a vaga? \xC9 s\xF3 responder "sim" (ou usar o link: {founders_link}).\n\n' + LEAD_OPT_OUT_LINE,
+  offer_followup: `Oi, {bar}! Voltando ao destaque de fundador no topo da {bairro_page}: gr\xE1tis at\xE9 31/01/2027, e nada \xE9 cobrado sem um novo sim de voc\xEAs. A partir de fevereiro, s\xF3 se quiserem, R$ 250 por m\xEAs, no Pix, sem fidelidade. O ranking n\xE3o muda, e \xE9 um bar por p\xE1gina. Para reservar, \xE9 s\xF3 responder "sim" aqui ou usar o link: {founders_link}
+
+${LEAD_POSTS_PROBE}
+
+` + LEAD_OPT_OUT_LINE
 };
+var LEAD_SLOT_TAKEN_TEMPLATE = "Oi, {bar}! Obrigado pelo retorno. O destaque da {bairro_page} j\xE1 foi reservado, e \xE9 um bar por p\xE1gina. A gente est\xE1 preparando outras formas de ajudar o bar, como o Raio-X de pre\xE7o mensal. Querem que a gente avise quando estiver pronto?\n\n" + LEAD_OPT_OUT_LINE;
 
 // packages/domain/src/leads.ts
 var LEAD_STAGES = [
@@ -314,6 +340,9 @@ var GENERIC_WORDS = new Set(
   )
 );
 
+// apps/site/src/city/dates.ts
+var count = (n, locale) => new Intl.NumberFormat(locale === "en" ? "en-GB" : "pt-BR").format(n);
+
 // apps/site/src/city/copy.ts
 var FORMAT_TYPE_LABELS = {
   "pt-BR": {
@@ -362,7 +391,18 @@ function kindNote(kind, locale) {
   if (kind === "promo") return locale === "en" ? " on special offer" : " em promo\xE7\xE3o";
   return "";
 }
-var plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+var plural = (n, one, many) => `${count(n, "pt-BR")} ${n === 1 ? one : many}`;
+var pluralEn = (n, one, many) => `${count(n, "en")} ${n === 1 ? one : many}`;
+function among(s, locale) {
+  const recentPt = s.recent ? "" : " conferido";
+  const recentEn = s.recent ? "a price" : "a checked price";
+  if (locale === "en") {
+    if (s.places) return `among ${pluralEn(s.venues, ...s.places)} in ${s.city} with ${recentEn}`;
+    return s.venues === 1 ? `at the only ${s.city} bar with ${recentEn}` : `among the ${count(s.venues, "en")} ${s.city} bars with ${recentEn}`;
+  }
+  if (s.places) return `entre ${plural(s.venues, ...s.places)} de ${s.city} com pre\xE7o${recentPt}`;
+  return s.venues === 1 ? `no \xFAnico bar de ${s.city} com pre\xE7o${recentPt}` : `entre os ${count(s.venues, "pt-BR")} bares de ${s.city} com pre\xE7o${recentPt}`;
+}
 var ARTICLES = {
   pituba: "na",
   barra: "na",
@@ -399,16 +439,27 @@ var ARTICLES = {
   "chame chame": "no",
   "nordeste de amaralina": "no",
   "dique do tororo": "no",
+  "santo antonio alem do carmo": "no",
+  "pelourinho e centro historico": "no",
   barris: "nos",
   mares: "nos"
 };
+var placeKey = (name) => name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 function inPlace(name) {
-  const key = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-  return `${ARTICLES[key] ?? "em"} ${name}`;
+  return `${ARTICLES[placeKey(name)] ?? "em"} ${name}`;
 }
+var DISPLAY_NAMES = {
+  "salvador:santo-antonio": "Santo Ant\xF4nio Al\xE9m do Carmo",
+  "salvador:centro-historico": "Pelourinho e Centro Hist\xF3rico"
+};
+var bairroDisplayName = (city, slug, name) => DISPLAY_NAMES[`${city}:${slug}`] ?? name;
 var COPY = {
   "pt-BR": {
-    title: (city) => `Cerveja mais barata em ${city} hoje`,
+    /** Title candidates, longest first: the page takes the first that fits 60 characters. */
+    title: (city) => [
+      `Cerveja barata em ${city}: bares mais baratos de hoje`,
+      `Cerveja barata em ${city}: bares mais baratos`
+    ],
     /** Happy hours only when the city has some: the description is what search engines and assistants quote. */
     description: (city, happyHours) => `Os pre\xE7os de cerveja mais baixos de ${city}, do mais barato ao mais caro por litro, com ${happyHours ? "happy hours, " : ""}bairros e mapa.`,
     heading: (city) => `A cerveja mais barata em ${city}`,
@@ -418,8 +469,14 @@ var COPY = {
       deposito: (city) => `A cerveja mais barata nos dep\xF3sitos de ${city}`
     },
     categoryTitle: {
-      mercado: (city) => `Cerveja mais barata nos mercados de ${city} hoje`,
-      deposito: (city) => `Cerveja mais barata nos dep\xF3sitos de ${city} hoje`
+      mercado: (city) => [
+        `Cerveja barata no mercado em ${city}: pre\xE7os de hoje`,
+        `Cerveja barata no mercado em ${city}`
+      ],
+      deposito: (city) => [
+        `Dep\xF3sito de bebidas em ${city}: cerveja mais barata hoje`,
+        `Dep\xF3sito de bebidas em ${city}: cerveja mais barata`
+      ]
     },
     categoryDescription: {
       mercado: (city) => `Pre\xE7o da cerveja nos supermercados e mercadinhos de ${city}, das notas fiscais das \xFAltimas horas, em ordem de pre\xE7o por litro.`,
@@ -428,8 +485,14 @@ var COPY = {
     categoryPlaces: { mercado: ["loja", "lojas"], deposito: ["dep\xF3sito", "dep\xF3sitos"] },
     categoryWhere: { mercado: "nos mercados", deposito: "nos dep\xF3sitos" },
     categoryNote: "Pre\xE7os de notas fiscais (NFC-e) das \xFAltimas 72 horas, do Pre\xE7o da Hora Bahia (SEFAZ-BA). Pre\xE7o de loja muda com cada promo\xE7\xE3o: sai do ranking depois de 14 dias. Venda proibida para menores de 18 anos.",
-    summary: (s) => `Em ${s.date}, o menor pre\xE7o por litro em ${s.city}${s.recent ? " verificado nos \xFAltimos 90 dias" : ""} \xE9 ${s.perLitre}: ${s.beer}, ${s.serving}, por ${s.price}${kindNote(s.kind, "pt-BR")} \u2014 ${s.venue}. Comparamos ${plural(s.prices, "pre\xE7o", "pre\xE7os")} em ${plural(s.venues, ...s.places ?? ["bar", "bares"])}.`,
+    /**
+     * The claim is scoped to the bars we have prices for (audit A12): the press knows cheap bars we don't price yet.
+     * Then the typical prices (a sentence of answers.ts), or how many prices the claim rests on.
+     */
+    summary: (s, typical) => `Em ${s.date}, o menor pre\xE7o por litro${s.recent ? " conferido nos \xFAltimos 90 dias" : ""} ${among(s, "pt-BR")} \xE9 ${s.perLitre}: ${s.beer}, ${s.serving}, por ${s.price}${kindNote(s.kind, "pt-BR")} \u2014 ${s.venue}. ` + (typical ?? `Comparamos ${plural(s.prices, "pre\xE7o", "pre\xE7os")} em ${plural(s.venues, ...s.places ?? ["bar", "bares"])}.`),
     summaryEmpty: (date, city) => `Em ${date}, ainda n\xE3o temos pre\xE7os publicados em ${city}. Os primeiros chegam em breve.`,
+    /** "R$ 9,00 a lata de 350 ml": a typical price inside a list. */
+    typicalItem: (price, serving) => `${price} ${serving}`,
     anyBeer: "Cerveja",
     filters: "Filtros",
     when: "Quando",
@@ -468,8 +531,8 @@ var COPY = {
     kind: "Tipo",
     anyKind: "Todos",
     clear: "Limpar filtros",
-    results: (n) => n === 1 ? "1 pre\xE7o" : `${n} pre\xE7os`,
-    bars: (n) => n === 1 ? "1 bar" : `${n} bares`,
+    results: (n) => n === 1 ? "1 pre\xE7o" : `${count(n, "pt-BR")} pre\xE7os`,
+    bars: (n) => n === 1 ? "1 bar" : `${count(n, "pt-BR")} bares`,
     morePrices: (n) => n === 1 ? "+1 pre\xE7o" : `+${n} pre\xE7os`,
     noResults: "Nenhum pre\xE7o com esses filtros.",
     showMore: "Ver mais",
@@ -484,7 +547,7 @@ var COPY = {
     creditedTo: (nickname, level) => `enviado por @${nickname}${level ? ` \xB7 ${level}` : ""}`,
     disputed: "contestado",
     openBar: "Open bar",
-    openBarIntro: "Bebe \xE0 vontade por um tempo: pre\xE7o do pacote, sem pre\xE7o por litro.",
+    openBarIntro: "Pre\xE7o fixo por um tempo definido: \xE9 o pre\xE7o do pacote, sem pre\xE7o por litro.",
     minutes: (n) => n % 60 === 0 ? `${n / 60} h` : `${n} min`,
     map: "Mapa dos bares com pre\xE7o",
     showMap: "Ver no mapa",
@@ -498,6 +561,12 @@ var COPY = {
     greyPrompt: "Sabe o pre\xE7o? Conta pra gente",
     mapLegend: "Etiquetas: os 7 bares mais baratos por litro, com o pre\xE7o que voc\xEA paga. Pontos: os outros bares com pre\xE7o. No mapa aberto, os cinza ainda n\xE3o t\xEAm pre\xE7o (toque num para mandar).",
     cheapest: "O litro mais barato",
+    /** The headline card's heading: the cheapest litre where the page looks (it never repeats the page's H1). */
+    cheapestLitre: {
+      bar: "O litro mais barato nos bares",
+      mercado: "O litro mais barato nos mercados",
+      deposito: "O litro mais barato nos dep\xF3sitos"
+    },
     cheapestIn: (place) => `A cerveja mais barata ${inPlace(place)}`,
     cheapestNear: (km) => `A cerveja mais barata a at\xE9 ${km} km de voc\xEA`,
     noPriceHereYet: "Ainda sem pre\xE7o por aqui. Viu um? Manda pra gente.",
@@ -518,17 +587,27 @@ var COPY = {
     noAlcoholFree: "Ainda sem pre\xE7o de cerveja sem \xE1lcool por aqui. Viu um? Manda pra gente."
   },
   en: {
-    title: (city) => `Cheapest beer in ${city} today`,
+    // English titles always say "<city>, Brazil": English search mixes Salvador up with El Salvador.
+    title: (city) => [
+      `Cheap beer in ${city}, Brazil: cheapest bars today`,
+      `Cheap beer in ${city}, Brazil: cheapest bars`
+    ],
     description: (city, happyHours) => `The lowest beer prices in ${city}, ranked by price per litre, with ${happyHours ? "happy hours, " : ""}neighbourhoods and a map.`,
-    heading: (city) => `The cheapest beer in ${city}`,
+    heading: (city) => `The cheapest beer in ${city}, Brazil`,
     categories: { bar: "Bars", mercado: "Supermarkets", deposito: "Dep\xF3sitos" },
     categoryHeading: {
       mercado: (city) => `The cheapest beer in ${city}'s supermarkets`,
       deposito: (city) => `The cheapest beer in ${city}'s dep\xF3sitos`
     },
     categoryTitle: {
-      mercado: (city) => `Cheapest beer in ${city} supermarkets today`,
-      deposito: (city) => `Cheapest beer in ${city} dep\xF3sitos today`
+      mercado: (city) => [
+        `Supermarket beer prices in ${city}, Brazil today`,
+        `Supermarket beer prices in ${city}, Brazil`
+      ],
+      deposito: (city) => [
+        `Drink shops (dep\xF3sitos) in ${city}, Brazil: cheapest beer`,
+        `Drink shops in ${city}, Brazil: cheapest beer`
+      ]
     },
     categoryDescription: {
       mercado: (city) => `Beer prices in ${city}'s supermarkets and corner shops, from the last hours' receipts, ranked by price per litre.`,
@@ -537,8 +616,9 @@ var COPY = {
     categoryPlaces: { mercado: ["shop", "shops"], deposito: ["dep\xF3sito", "dep\xF3sitos"] },
     categoryWhere: { mercado: "supermarkets", deposito: "dep\xF3sitos" },
     categoryNote: "Prices from electronic receipts (NFC-e) of the last 72 hours, via Bahia's Pre\xE7o da Hora (SEFAZ-BA). Shop prices change with every promotion: they leave the ranking after 14 days. No sales to under-18s.",
-    summary: (s) => `On ${s.date}, the lowest price per litre in ${s.city}${s.recent ? " checked in the last 90 days" : ""} is ${s.perLitre}: ${s.beer}, ${s.serving}, for ${s.price}${kindNote(s.kind, "en")} \u2014 ${s.venue}. We compared ${plural(s.prices, "price", "prices")} at ${plural(s.venues, ...s.places ?? ["bar", "bars"])}.`,
+    summary: (s, typical) => `On ${s.date}, the lowest price per litre${s.recent ? " checked in the last 90 days" : ""} ${among(s, "en")} is ${s.perLitre}: ${s.beer}, ${s.serving}, for ${s.price}${kindNote(s.kind, "en")} \u2014 ${s.venue}. ` + (typical ?? `We compared ${pluralEn(s.prices, "price", "prices")} at ${pluralEn(s.venues, ...s.places ?? ["bar", "bars"])}.`),
     summaryEmpty: (date, city) => `As of ${date}, there are no published prices in ${city} yet. The first ones are coming soon.`,
+    typicalItem: (price, serving) => `${price} for ${serving}`,
     anyBeer: "Beer",
     filters: "Filters",
     when: "When",
@@ -577,8 +657,8 @@ var COPY = {
     kind: "Type",
     anyKind: "All",
     clear: "Clear filters",
-    results: (n) => n === 1 ? "1 price" : `${n} prices`,
-    bars: (n) => n === 1 ? "1 bar" : `${n} bars`,
+    results: (n) => n === 1 ? "1 price" : `${count(n, "en")} prices`,
+    bars: (n) => n === 1 ? "1 bar" : `${count(n, "en")} bars`,
     morePrices: (n) => n === 1 ? "+1 price" : `+${n} prices`,
     noResults: "No prices match these filters.",
     showMore: "Show more",
@@ -593,7 +673,7 @@ var COPY = {
     creditedTo: (nickname, level) => `sent by @${nickname}${level ? ` \xB7 ${level}` : ""}`,
     disputed: "disputed",
     openBar: "Open bar",
-    openBarIntro: "All you can drink for a while: a package price, so no price per litre.",
+    openBarIntro: "A fixed price for a set time: it is a package price, with no price per litre.",
     minutes: (n) => n % 60 === 0 ? `${n / 60} h` : `${n} min`,
     map: "Map of bars with prices",
     showMap: "Show on the map",
@@ -607,6 +687,11 @@ var COPY = {
     greyPrompt: "Know the price? Tell us",
     mapLegend: "Tags: the 7 cheapest bars per litre, with the price you pay. Dots: the other bars with prices. On the open map, grey ones have no price yet (tap one to send it).",
     cheapest: "The cheapest litre",
+    cheapestLitre: {
+      bar: "The cheapest litre in bars",
+      mercado: "The cheapest litre in supermarkets",
+      deposito: "The cheapest litre in dep\xF3sitos"
+    },
     cheapestIn: (place) => `The cheapest beer in ${place}`,
     cheapestNear: (km) => `The cheapest beer within ${km} km of you`,
     noPriceHereYet: "No prices here yet. Seen one? Send it to us.",
@@ -634,6 +719,7 @@ var ROUTES = {
   city: { "pt-BR": "/:city", en: "/en/:city" },
   cityShops: { "pt-BR": "/:city/mercados", en: "/en/:city/supermarkets" },
   cityDepots: { "pt-BR": "/:city/depositos", en: "/en/:city/depots" },
+  priceGuide: { "pt-BR": "/:city/preco-da-cerveja", en: "/en/:city/beer-prices" },
   neighbourhood: { "pt-BR": "/:city/:bairro", en: "/en/:city/:bairro" },
   happyHour: { "pt-BR": "/:city/happy-hour", en: "/en/:city/happy-hour" },
   happyHourDay: { "pt-BR": "/:city/happy-hour/:day", en: "/en/:city/happy-hour/:day" },
@@ -653,6 +739,7 @@ var ROUTES = {
   forBars: { "pt-BR": "/para-bares", en: "/en/for-bars" },
   forBarsFounders: { "pt-BR": "/para-bares/fundadores", en: "/en/for-bars/founders" },
   forBarsMenu: { "pt-BR": "/para-bares/cardapio", en: "/en/for-bars/menu" },
+  forBarsBadge: { "pt-BR": "/para-bares/selo", en: "/en/for-bars/badge" },
   submit: { "pt-BR": "/enviar", en: "/en/submit" },
   submitBar: { "pt-BR": "/enviar/bar", en: "/en/submit/bar" },
   about: { "pt-BR": "/sobre", en: "/en/about" },
@@ -682,7 +769,7 @@ function path(key, locale, params = {}) {
   });
 }
 function fixedSegments() {
-  const top = /* @__PURE__ */ new Set(["en", "api", "hooks", "mcp", "healthz", "_astro"]);
+  const top = /* @__PURE__ */ new Set(["en", "api", "hooks", "mcp", "healthz", "_astro", "selos"]);
   const underCity = /* @__PURE__ */ new Set();
   for (const patterns of Object.values(ROUTES)) {
     for (const pattern of [patterns["pt-BR"], patterns.en]) {
@@ -761,13 +848,16 @@ function onePerBar(ranked) {
   }
   return [...rows.values()];
 }
-function servingLabel(deal, locale) {
+function servingLabel(deal, locale, inSentence = false) {
+  const lower = (text) => inSentence ? `${text.charAt(0).toLowerCase()}${text.slice(1)}` : text;
   const format2 = formatByCode(deal.formatCode);
-  const name = format2 ? format2.label[locale] : `${FORMAT_TYPE_LABELS[locale][deal.formatType] ?? deal.formatType} ${deal.volumeMl} ml`;
+  const name = lower(
+    format2 ? format2.label[locale] : `${FORMAT_TYPE_LABELS[locale][deal.formatType] ?? deal.formatType} ${deal.volumeMl} ml`
+  );
   if (deal.packaging === "single" && deal.units === 1) return name;
   const packaging = PACKAGING_LABELS[locale][deal.packaging];
   const amount = deal.units > 1 ? `${deal.units} \xD7 ${name}` : name;
-  return packaging ? `${packaging}: ${amount}` : amount;
+  return packaging ? `${lower(packaging)}: ${amount}` : amount;
 }
 function beerLabel(deal, locale) {
   return deal.beerName ?? deal.brandName ?? COPY[locale].anyBeer;
@@ -775,14 +865,37 @@ function beerLabel(deal, locale) {
 var money = (minor) => formatMoney(minor, market);
 var perLitre2 = (minor) => formatPpn(minor, market);
 
+// apps/site/src/brand.ts
+var BRAND = {
+  name: "Cerveja Barata",
+  domain: "cervejabarata.com.br",
+  /** Brand addresses only (Cloudflare Email Routing to a private inbox); never a personal one. */
+  email: {
+    contato: "contato@cervejabarata.com.br",
+    privacidade: "privacidade@cervejabarata.com.br",
+    imprensa: "imprensa@cervejabarata.com.br",
+    bares: "bares@cervejabarata.com.br"
+  },
+  /** The brand's own public profiles, for Organization.sameAs. */
+  profiles: ["https://www.instagram.com/cervejabaratacombr/"],
+  tagline: { "pt-BR": "o mapa da cerveja barata", en: "the cheap beer map" },
+  headline: { "pt-BR": "A cerveja mais barata perto de voc\xEA", en: "The cheapest beer near you" }
+};
+
+// apps/site/src/seo/titles.ts
+var SUFFIX = ` \xB7 ${BRAND.name}`;
+
 // apps/site/src/city/venues.ts
 var generatedAtOf = (data) => Math.floor(Date.parse(data.manifest.generated_at) / 1e3);
 
 // apps/site/src/city/landing.ts
+var rankingsCache = /* @__PURE__ */ new WeakMap();
 function cityRankings(data) {
+  const cached = rankingsCache.get(data);
+  if (cached) return cached;
   const generatedAt = generatedAtOf(data);
   const venues = new Map(data.venues.map((row) => [row.id, row]));
-  return data.cities.map((city) => {
+  const rankings = data.cities.map((city) => {
     const deals = data.deals.filter((row) => row.city === city.slug).map((row) => toCityDeal(row, venues));
     return {
       city,
@@ -791,6 +904,8 @@ function cityRankings(data) {
       alcoholFree: rankDeals(deals, generatedAt, city.timezone, "bar", true)
     };
   });
+  rankingsCache.set(data, rankings);
+  return rankings;
 }
 function bairroPages(rankings) {
   return rankings.flatMap((ranking2) => {
@@ -798,12 +913,16 @@ function bairroPages(rankings) {
     for (const deal of ranking2.ranked) {
       if (deal.bairro) byBairro.set(deal.bairro, [...byBairro.get(deal.bairro) ?? [], deal]);
     }
-    return [...byBairro].filter(([, deals]) => new Set(deals.map((deal) => deal.venueId)).size >= BAIRRO_MIN_VENUES).map(([slug, deals]) => ({
-      ...ranking2,
-      ranked: deals,
-      alcoholFree: (ranking2.alcoholFree ?? []).filter((deal) => deal.bairro === slug),
-      bairro: { slug, name: deals[0]?.bairroName ?? slug }
-    }));
+    return [...byBairro].filter(([, deals]) => new Set(deals.map((deal) => deal.venueId)).size >= BAIRRO_MIN_VENUES).map(([slug, deals]) => {
+      const name = deals[0]?.bairroName ?? slug;
+      return {
+        ...ranking2,
+        ranked: deals,
+        alcoholFree: (ranking2.alcoholFree ?? []).filter((deal) => deal.bairro === slug),
+        bairro: { slug, name, display: bairroDisplayName(ranking2.city.slug, slug, name) },
+        cityRanked: ranking2.ranked
+      };
+    });
   });
 }
 var venuesIn = (deals) => new Set(deals.map((deal) => deal.venueId)).size;
