@@ -906,6 +906,48 @@ def test_a_restaurant_that_writes_no_size_still_lists_at_bar_prices(adapter: Pre
     assert [(deal["format"], deal["volume_ml"], deal["price"]) for deal in deals] == [("garrafa", None, 19.9)]
 
 
+def test_every_mainstream_brand_in_the_catalog_is_searched_by_name() -> None:
+    """Barcodes are only learnt from the sales the words find, so a brand no word names never gets a price:
+    Skol, Itaipava and Antarctica had none once #320 dropped their words (Oct 2026). Craft brands' chopps
+    come with "chopp"."""
+    unsearched = [
+        brand.slug
+        for brand in committed_catalog().brands
+        if not brand.craft and not set(brand.aliases) & set(precodahora.TERMS)
+    ]
+    assert unsearched == []
+
+
+def test_the_brands_shops_sell_most_become_deals_but_not_their_other_drinks(adapter: PrecoDaHora) -> None:
+    """Lines as Salvador's receipts write them (#438 lists shops' single beers); Guaraná Antarctica and Skol
+    Beats, filed under beer's NCM by some shops, are no beer."""
+    adapter.stores = True
+    store = shop("SUPERMERCADO BOM PRECO LTDA", "11222333000144", -13.0110, -38.4890)
+    deposito = shop("DEPOSITO DE BEBIDAS RIO VERMELHO", "55666777000188", -13.0105, -38.4895)
+    items = search(
+        adapter,
+        page(
+            sale("CERV SKOL LT 350ML", 2.99, store),
+            sale("CERV LT ITAIPAVA PIL 550ML", 3.99, store),
+            sale("CERV ANTARCTICA SUBZERO LT 350ML", 2.89, store),
+            sale("CERV SKOL 1L", 6.49, deposito),
+            sale("REFRI ANTARCTICA GUARANA PET 2LT", 8.99, store),
+            sale("SKOL BEATS SENSES LT 269ML", 5.99, store),
+        ),
+        key="skol @ rio-vermelho cheap",
+    )
+    deals = [item.data for item in items if item.kind == "deal"]
+    assert sorted((d["brand"], d["beer"], d["format"], d["volume_ml"], d["price"]) for d in deals) == [
+        ("antarctica", "antarctica subzero", "lata", 350, 2.89),
+        ("itaipava", None, "lata", 550, 3.99),
+        ("skol", None, "lata", 350, 2.99),
+        ("skol", None, "litrao", 1000, 6.49),
+    ]
+    assert adapter.skipped["not beer"] == 2
+    assert not adapter.unread
+    IngestRequest.model_validate({"source": "precodahora", "items": [item.to_json() for item in items]})
+
+
 def test_shop_category() -> None:
     assert shop_category("SUPERMERCADO X", None) == "mercado"
     assert shop_category("DISTRIBUIDORA DE BEBIDAS Y", None) == "deposito"
@@ -955,6 +997,22 @@ def test_a_barcode_needs_agreement_before_it_reads_anything(tmp_path: Path) -> N
     assert book.serving(CAN, committed_catalog()).format_code == "lata_350"
     book.save()
     assert precodahora.GtinBook(tmp_path / "gtins.json").searchable() == [CAN]
+
+
+def test_the_barcodes_searched_cover_every_product_before_a_second_code(tmp_path: Path) -> None:
+    """A brand the words have only just found gets its barcode searched, although the brands searched since
+    the start have more codes, each with more votes from their own searches."""
+    book = precodahora.GtinBook(tmp_path / "gtins.json")
+    book.votes = {
+        "1000000000011": precodahora.Counter({"heineken||lata_350": 90}),
+        "1000000000012": precodahora.Counter({"heineken||lata_350": 80}),
+        "1000000000013": precodahora.Counter({"heineken||lata_350": 70}),
+        "1000000000021": precodahora.Counter({"heineken||long_neck_330": 60}),
+        "2000000000011": precodahora.Counter({"skol||lata_350": 3}),
+        "3000000000011": precodahora.Counter({"skol||lata_350": 1}),  # not known yet: one sale
+    }
+    assert book.searchable(limit=3) == ["1000000000011", "1000000000021", "2000000000011"]
+    assert book.searchable()[3:] == ["1000000000012", "1000000000013"]
 
 
 def test_barcode_searches_start_city_wide_and_read_every_page(

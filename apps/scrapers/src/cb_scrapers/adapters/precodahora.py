@@ -244,9 +244,12 @@ NARROWER = ("lata", "long neck", "600", "garrafa", "chopp")
 #: The barcode catalogue (what each code sells, learnt from the receipts) and how many codes a round searches.
 GTIN_FILE = "precodahora-gtins.json"
 GTIN_SEARCHES = 120
-#: Search terms, best sellers first. Not "skol" or "itaipava" (no bar sold them in a week of receipts around
-#: the MVP, only shops) nor "antarctica" (mostly Guaraná Antarctica). "original" matches other products too,
-#: but in 1 km circles the bars' Original 600 ml shows.
+#: Search terms, best sellers in bars first. "original" matches other products too, but in 1 km circles the
+#: bars' Original 600 ml shows. The brands sold mostly in shops come after the bars' (#438: supermarkets and
+#: depósitos list too): dropped on 6 Oct 2026 (#320) while only bars counted, Skol, Itaipava and Antarctica
+#: had no price at all, as barcodes are only learnt from the sales these words find. "antarctica" brings
+#: mostly Guaraná Antarctica, left out by its NCM, for the beers' barcodes. "litrao" rarely matches, as
+#: receipts write the litre ("CERV SKOL 1L"): litrões come with their brands' words and barcodes.
 TERMS = (
     "chopp",
     "heineken",
@@ -271,6 +274,14 @@ TERMS = (
     "estrella",
     "guinness",
     "chope",
+    "skol",
+    "itaipava",
+    "antarctica",
+    "crystal",
+    "glacial",
+    "proibida",
+    "kaiser",
+    "bavaria",
     "original",
     "litrao",
 )
@@ -537,9 +548,20 @@ class GtinBook:
         )
 
     def searchable(self, limit: int = GTIN_SEARCHES) -> list[str]:
-        """The codes worth a search of their own: known, most sold first."""
-        known = [code for code in self.votes if self.majority(code)]
-        return sorted(known, key=lambda code: -sum(self.votes[code].values()))[:limit]
+        """The codes worth a search of their own: known, most sold first, but one code of every product (beer
+        and size) before a second code of any, so the products the words have only just found (Skol's cans)
+        aren't crowded out by the brands whose codes have been searched, and voted for, since the start."""
+        products = {code: self.majority(code) for code in self.votes}
+        known = sorted(
+            (code for code, product in products.items() if product),
+            key=lambda code: -sum(self.votes[code].values()),
+        )
+        seen: set[str | None] = set()
+        first, more = [], []
+        for code in known:
+            (more if products[code] in seen else first).append(code)
+            seen.add(products[code])
+        return [*first, *more][:limit]
 
     def save(self) -> None:
         if self.path is None:

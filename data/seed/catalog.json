@@ -374,6 +374,21 @@
       ]
     },
     {
+      "slug": "antarctica-subzero",
+      "name": "Antarctica Subzero",
+      "brand": "antarctica",
+      "style": "lager",
+      "abv": null,
+      "non_alcoholic": false,
+      "aliases": [
+        "antarctica sub zero",
+        "antarctica subzero",
+        "antartica sub zero",
+        "antartica subzero",
+        "subzero"
+      ]
+    },
+    {
       "slug": "bavaria-premium",
       "name": "Bavaria Premium",
       "brand": "bavaria",
@@ -771,6 +786,14 @@
       "aliases": []
     },
     {
+      "code": "lata_550",
+      "type": "lata",
+      "volume_ml": 550,
+      "label_pt": "Latão 550 ml",
+      "label_en": "Tall can 550 ml",
+      "aliases": []
+    },
+    {
       "code": "long_neck_275",
       "type": "long_neck",
       "volume_ml": 275,
@@ -984,6 +1007,7 @@
     "400": "chopp",
     "473": "lata",
     "500": "chopp",
+    "550": "lata",
     "568": "pint",
     "600": "garrafa",
     "1000": "litrao"

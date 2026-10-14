@@ -50,6 +50,8 @@ var FORMATS = [
   format("lata", 269, "Lata 269 ml", "Can 269 ml"),
   format("lata", 350, "Lata 350 ml", "Can 350 ml"),
   format("lata", 473, "Lat\xE3o 473 ml", "Tall can 473 ml"),
+  // Itaipava's tall can ("CERV LT ITAIPAVA PIL 550ML" on Salvador receipts, Oct 2026).
+  format("lata", 550, "Lat\xE3o 550 ml", "Tall can 550 ml"),
   format("long_neck", 275, "Long neck 275 ml", "Bottle 275 ml"),
   format("long_neck", 330, "Long neck 330 ml", "Bottle 330 ml"),
   format("long_neck", 350, "Long neck 350 ml", "Bottle 350 ml"),
@@ -79,6 +81,7 @@ var TYPE_BY_VOLUME_ML = {
   400: "chopp",
   473: "lata",
   500: "chopp",
+  550: "lata",
   568: "pint",
   600: "garrafa",
   1e3: "litrao"
@@ -145,6 +148,10 @@ function describeWindows(windows, locale = "pt-BR") {
   }
   return groups.join(" \xB7 ");
 }
+var TIMED_KINDS = ["happy_hour", "promo"];
+function scheduleMissing(kind, windows) {
+  return TIMED_KINDS.includes(kind ?? "") && (windows?.length ?? 0) === 0;
+}
 
 // packages/domain/src/enums.ts
 function venueCategory(kind, onSite) {
@@ -196,12 +203,12 @@ function inRankings(freshness) {
 }
 
 // packages/domain/src/lead-messages.ts
-var BADGE = 'Os pre\xE7os entram no site sem ningu\xE9m digitar nada. E marcando "sou dono ou gerente do bar", o {bar} ganha o selo azul de bar verificado ao lado do nome, como no Twitter e no Instagram: quem procura cerveja v\xEA que o bar reivindicou a p\xE1gina e que os pre\xE7os vieram do pr\xF3prio bar. \xC9 de gra\xE7a e n\xE3o muda a posi\xE7\xE3o no ranking, que \xE9 sempre pelo pre\xE7o.';
+var BADGE = 'Os pre\xE7os entram no site sem ningu\xE9m digitar nada. E marcando "sou dono ou gerente do bar", o {bar} ganha o selo azul de bar verificado ao lado do nome, como no Instagram: quem procura cerveja v\xEA que o bar reivindicou a p\xE1gina e que os pre\xE7os vieram do pr\xF3prio bar. \xC9 de gra\xE7a e n\xE3o muda a posi\xE7\xE3o no ranking, que \xE9 sempre pelo pre\xE7o.';
 var LEAD_TEMPLATES = {
-  message1: "Oi, pessoal do {bar}! Aqui \xE9 do Cerveja Barata (cervejabarata.com.br), o site que mostra onde a cerveja est\xE1 mais barata em {city}, com o pre\xE7o por litro para comparar lata, long neck, garrafa e chopp. {prices_sentence}\n\nMandem uma foto do card\xE1pio por este link: {menu_link}\n\n" + BADGE,
+  message1: "Oi, pessoal do {bar}! Aqui \xE9 do Cerveja Barata (cervejabarata.com.br), o site onde quem est\xE1 em {city} compara o pre\xE7o da cerveja perto de casa: lata, long neck, garrafa e chopp. {prices_sentence}\n\nPara conferir ou corrigir os pre\xE7os, mandem uma foto do card\xE1pio por este link (n\xE3o pede senha nem pagamento): {menu_link}\n\n" + BADGE,
   followup: 'Oi, pessoal do {bar}! Passando de novo: o link para mandar a foto do card\xE1pio continua valendo: {menu_link}\n\nCom a foto, os pre\xE7os entram no site sem ningu\xE9m digitar nada, e marcando "sou dono ou gerente do bar" o {bar} ganha o selo azul de bar verificado. \xC9 de gra\xE7a e n\xE3o muda a posi\xE7\xE3o no ranking, que \xE9 sempre pelo pre\xE7o.',
-  message2: 'Que bom ter o {bar} com a gente! Uma proposta para os primeiros bares:\n\nDestaque de fundador: um cart\xE3o "Patrocinado" no topo da {bairro_page}, um bar por p\xE1gina. O ranking n\xE3o muda: ningu\xE9m paga para subir. Junto vem, todo m\xEAs a partir de janeiro, o Raio-X de pre\xE7o do {bar}: quanto o seu litr\xE3o custa contra a m\xE9dia do bairro e quem est\xE1 mais barato perto de voc\xEA.\n\n\xC9 gr\xE1tis do lan\xE7amento (10/12) at\xE9 abrirmos o pagamento, em janeiro. Depois, R$ 250 por m\xEAs, sem fidelidade, e o pre\xE7o de fundador fica travado por 12 meses.\n\nEstamos testando tamb\xE9m ajuda com posts para o Instagram do bar. Se isso te interessa, me conta o que mais pesa na sua semana. Posso reservar a {bairro_page} para voc\xEAs? {founders_link}',
-  offer_followup: "Oi, pessoal do {bar}! S\xF3 lembrando do destaque de bar fundador: gr\xE1tis at\xE9 janeiro, depois R$ 250 por m\xEAs, sem fidelidade, e o ranking continua pelo pre\xE7o. As vagas s\xE3o uma por p\xE1gina; para reservar: {founders_link}"
+  message2: 'Que bom ter o {bar} com a gente! Uma proposta para os primeiros bares:\n\nDestaque de fundador: um cart\xE3o "Patrocinado" no topo da {bairro_page}, um bar por p\xE1gina. O ranking n\xE3o muda: ningu\xE9m paga para subir. Junto vem, todo m\xEAs a partir de janeiro, o Raio-X de pre\xE7o do {bar}: quanto a sua cerveja custa contra a m\xE9dia do bairro, no mesmo tamanho (a 600 com a 600, o chopp com o chopp), e quem est\xE1 mais barato perto de voc\xEA.\n\n\xC9 gr\xE1tis do lan\xE7amento (10/12) at\xE9 janeiro, e nada \xE9 cobrado sozinho: em janeiro a gente pergunta se voc\xEAs querem continuar por R$ 250 por m\xEAs, no Pix, sem fidelidade, com o pre\xE7o de fundador travado por 12 meses. Se n\xE3o quiserem, o cart\xE3o sai e a p\xE1gina do bar continua igual.\n\nPosso reservar a {bairro_page} para voc\xEAs? \xC9 s\xF3 responder "sim" aqui, ou usar o link: {founders_link}',
+  offer_followup: "Oi, pessoal do {bar}! S\xF3 lembrando do destaque de bar fundador: gr\xE1tis at\xE9 janeiro, sem nada cobrado sozinho (em janeiro a gente pergunta se voc\xEAs querem continuar por R$ 250 por m\xEAs, sem fidelidade), e o ranking continua pelo pre\xE7o. As vagas s\xE3o uma por p\xE1gina; para reservar: {founders_link}\n\nEstamos testando tamb\xE9m ajuda com posts para o Instagram do bar. Se isso interessa, contem pra gente o que mais pesa na semana de voc\xEAs."
 };
 
 // packages/domain/src/leads.ts
@@ -460,6 +467,9 @@ var COPY = {
     bars: (n) => n === 1 ? "1 bar" : `${n} bares`,
     morePrices: (n) => n === 1 ? "+1 pre\xE7o" : `+${n} pre\xE7os`,
     noResults: "Nenhum pre\xE7o com esses filtros.",
+    showMore: "Ver mais",
+    loadingList: "Carregando todos os pre\xE7os\u2026",
+    listFailed: "N\xE3o deu para carregar todos os pre\xE7os. Tente de novo.",
     locating: "Procurando voc\xEA\u2026",
     locationDenied: "N\xE3o deu para saber onde voc\xEA est\xE1. Escolha um bairro.",
     away: (km) => km < 1 ? `a ${Math.round(km * 1e3)} m` : `a ${km.toFixed(1).replace(".", ",")} km`,
@@ -566,6 +576,9 @@ var COPY = {
     bars: (n) => n === 1 ? "1 bar" : `${n} bars`,
     morePrices: (n) => n === 1 ? "+1 price" : `+${n} prices`,
     noResults: "No prices match these filters.",
+    showMore: "Show more",
+    loadingList: "Loading every price\u2026",
+    listFailed: "Couldn't load every price. Try again.",
     locating: "Finding you\u2026",
     locationDenied: "We couldn't tell where you are. Pick a neighbourhood instead.",
     away: (km) => km < 1 ? `${Math.round(km * 1e3)} m away` : `${km.toFixed(1)} km away`,
@@ -729,7 +742,7 @@ function listable(deal, now, timeZone) {
 }
 function rankDeals(deals, now, timeZone, category = "bar", alcoholFree = false) {
   return deals.filter(
-    (deal) => deal.category === category && deal.nonAlcoholic === alcoholFree && deal.kind !== "open_bar" && listable(deal, now, timeZone)
+    (deal) => deal.category === category && deal.nonAlcoholic === alcoholFree && deal.kind !== "open_bar" && !scheduleMissing(deal.kind, deal.windows) && listable(deal, now, timeZone)
   ).sort(
     (a, b) => a.ppnMinor - b.ppnMinor || a.priceMinor - b.priceMinor || a.venueName.localeCompare(b.venueName, "pt-BR")
   );

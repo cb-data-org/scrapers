@@ -81,8 +81,64 @@ READER = ServingReader(committed_catalog())
         ("CERV AMSTEL S/ALCOOL LT 350ML", "amstel", "amstel-zero", "lata_350", 350, 1, "single"),
         ("CERVEJA BAVARIA SEM ALCOOL 350ML", "bavaria", "bavaria-zero", "lata_350", 350, 1, "single"),
         # Antarctica's Sub Zero and Stella's Pure Gold have alcohol.
-        ("CERV ANTARCTICA SUB ZERO LT 350ML", "antarctica", None, "lata_350", 350, 1, "single"),
+        (
+            "CERV ANTARCTICA SUB ZERO LT 350ML",
+            "antarctica",
+            "antarctica-subzero",
+            "lata_350",
+            350,
+            1,
+            "single",
+        ),
         ("STELLA ARTOIS PURE GOLD LN 330ML", "stella-artois", None, "long_neck_330", 330, 1, "single"),
+        # Shops' lines for the brands they sell most (Preço da Hora, 6 Oct 2026, and their usual forms).
+        ("CERV SKOL LT 350ML", "skol", None, "lata_350", 350, 1, "single"),
+        ("SKOL PILSEN LATA 269ML", "skol", "skol-pilsen", "lata_269", 269, 1, "single"),
+        ("CERVEJA PILSEN SKOL GRF 300ML OW", "skol", None, "garrafa_300", 300, 1, "single"),
+        (
+            "CERV ANTARCTICA SUBZERO LT 350ML",
+            "antarctica",
+            "antarctica-subzero",
+            "lata_350",
+            350,
+            1,
+            "single",
+        ),
+        ("CERV ANTARC SUBZERO LT 473ML", "antarctica", "antarctica-subzero", "lata_473", 473, 1, "single"),
+        ("CERV ANTARCTICA PILSEN 600ML", "antarctica", "antarctica-pilsen", "garrafa_600", 600, 1, "single"),
+        # Original is Antarctica's: its maker's name, in either order, is no second brand.
+        (
+            "CERVEJA ORIGINAL ANTARCTICA 600ML",
+            "original",
+            "antarctica-original",
+            "garrafa_600",
+            600,
+            1,
+            "single",
+        ),
+        ("ORIGINAL ANTARCTICA 600ML", "original", None, "garrafa_600", 600, 1, "single"),
+        ("CERV ANTARCTICA ORIGINAL 600ML", "original", None, "garrafa_600", 600, 1, "single"),
+        # Itaipava's 550 ml tall can.
+        ("CERV LT ITAIPAVA PIL 550ML", "itaipava", None, "lata_550", 550, 1, "single"),
+        ("CERVEJA ITAIPAVA 550ML", "itaipava", None, "lata_550", 550, 1, "single"),
+        (
+            "CERV ITAIPAVA 100% MALTE LT 350ML",
+            "itaipava",
+            "itaipava-puro-malte",
+            "lata_350",
+            350,
+            1,
+            "single",
+        ),
+        ("CERV CRYSTAL LT 350ML", "crystal", None, "lata_350", 350, 1, "single"),
+        ("CERV PROIBIDA LT 269ML", "proibida", None, "lata_269", 269, 1, "single"),
+        # The litrão: the returnable 1 litre bottle, as receipts write it (the word itself is rare).
+        ("CERV SKOL 1L", "skol", None, "litrao_1000", 1000, 1, "single"),
+        ("CERV SKOL RET 1000ML", "skol", None, "litrao_1000", 1000, 1, "single"),
+        ("CERVEJA SKOL GARRAFA 1L RETORNAVEL", "skol", None, "litrao_1000", 1000, 1, "single"),
+        ("LITRAO SKOL", "skol", None, "litrao_1000", 1000, 1, "single"),
+        ("ANTARCTICA SUBZERO 1L RET", "antarctica", "antarctica-subzero", "litrao_1000", 1000, 1, "single"),
+        ("CERV ITAIPAVA 1 LITRO", "itaipava", None, "litrao_1000", 1000, 1, "single"),
     ],
 )
 def test_reads_servings(
@@ -121,7 +177,13 @@ def test_reads_servings(
         # No brand and no written size: nothing to go on.
         ("CHOPP PILSEN", "no brand"),
         ("CERVEJA GARRAFA", "no brand"),
-        ("REFRIGERANTE LATA 350ML", "no brand"),
+        # The beer brands' other drinks, filed under beer's NCM by some shops (6 Oct 2026).
+        ("REFRIGERANTE LATA 350ML", "not beer"),
+        ("REFRI ANTARCTICA GUARANA PET 2LT", "not beer"),
+        ("GUARANA ANTARCTICA LT 350ML", "not beer"),
+        ("AGUA TONICA ANTARCTICA LT 350ML", "not beer"),
+        ("SKOL BEATS SENSES LT 269ML", "not beer"),
+        ("ANTARCTICA SUBZERO ORIGINAL 600ML", "two brands"),
         ("HEINEKEN", "no size"),
         ("BALDE HEINEKEN", "bucket size"),
         ("HEINEKEN AMSTEL BALDE C/6", "two brands"),
@@ -164,3 +226,14 @@ def test_a_bars_beer_without_a_size_is_its_600_ml_bottle_assumed() -> None:
     with pytest.raises(NotAServing):
         READER.read("CERVEJA PILSEN", assume_bottle=True)  # no brand, no size
     assert READER.read("HEINEKEN LONG NECK", assume_bottle=True).format_code == "long_neck_330"
+
+
+def test_antarctica_subzero_is_beer_with_alcohol() -> None:
+    for description in ("CERV ANTARCTICA SUBZERO LT 350ML", "CERVEJA ANTARCTICA SUB ZERO LATA 350ML"):
+        serving = READER.read(description)
+        assert serving.beer is not None and serving.beer.slug == "antarctica-subzero"
+        assert serving.beer.non_alcoholic is False
+    # A bar's Skol Beats isn't Skol's 600 ml bottle either.
+    with pytest.raises(NotAServing) as error:
+        READER.read("SKOL BEATS", assume_bottle=True)
+    assert error.value.reason == "not beer"

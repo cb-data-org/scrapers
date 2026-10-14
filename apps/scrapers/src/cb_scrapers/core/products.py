@@ -7,9 +7,11 @@ Chopp in a 600 ml bottle · "CHOPP PILSEN 300ML" → a chopp 300 ml of no named 
 The keywords follow parseServing in @cb/domain (packages/domain/src/parse.ts), which reads the same kind of
 line in the Worker. This reader is stricter because what it accepts may publish by itself: retail packs and
 kegs, two brands in one line, promotions, buckets of unknown size and sizes the catalog doesn't have come
-back as a reason (NotAServing) instead of a guess. Alcohol-free beers ("HEINEKEN 0.0 LN", "CERV BRAHMA ZERO
-LT", "ITAIPAVA 0% 350ML") are their brand's alcohol-free beer in the catalog (non_alcoholic), never its
-lager; one the catalog lacks comes back as "zero alcohol: not in the catalog".
+back as a reason (NotAServing) instead of a guess, and so do the beer brands' other drinks that some shops
+file under beer ("REFRI ANTARCTICA GUARANA PET 2LT", "SKOL BEATS SENSES LT 269ML"). Alcohol-free beers
+("HEINEKEN 0.0 LN", "CERV BRAHMA ZERO LT", "ITAIPAVA 0% 350ML") are their brand's alcohol-free beer in the
+catalog (non_alcoholic), never its lager; one the catalog lacks comes back as "zero alcohol: not in the
+catalog".
 """
 
 import re
@@ -66,8 +68,11 @@ ABBREVIATIONS = {
     "stell": "stella",
     "orig": "original",
     "origin": "original",
+    "antarc": "antarctica",
     "antarct": "antarctica",
+    "antarctic": "antarctica",
     "antart": "antarctica",
+    "antartic": "antarctica",
     "brahm": "brahma",
     "amst": "amstel",
     "eisenb": "eisenbahn",
@@ -97,8 +102,9 @@ LONG_NECK_ML = {
 }
 #: Sizes that name their type on their own ("SKOL 600"); chopp and pint sizes need their word. A bare 300 ml
 #: is the returnable "litrinho" bottle ("SKOL PILSEN 300ML"), as in @cb/domain: draught always says chopp.
+#: 550 ml is Itaipava's tall can ("CERVEJA ITAIPAVA 550ML"), 1 litre the returnable litrão ("CERV SKOL 1L").
 TYPE_OF_BARE_VOLUME = {269: "lata", 275: "long_neck", 300: "garrafa", 330: "long_neck", 350: "lata"}
-TYPE_OF_BARE_VOLUME |= {355: "long_neck", 473: "lata", 600: "garrafa", 1000: "litrao"}
+TYPE_OF_BARE_VOLUME |= {355: "long_neck", 473: "lata", 550: "lata", 600: "garrafa", 1000: "litrao"}
 
 _VOLUME = re.compile(r"(?<![\d.,])(\d+(?:[.,]\d+)?) ?(ml|l|lt|lts|ltr|litros?)(?![a-z])")
 _BARE_NUMBER = re.compile(r"(?<![\d.,])(\d{3,4})(?![\d.,]| ?(?:x|un|und|unid)\b)")
@@ -115,6 +121,10 @@ _ZERO_PERCENT = re.compile(r"(?<![\d.,])0(?:[.,]0)? ?%")
 _PROMOTION = re.compile(
     r" (promo\w*|happy|hh|dobro|dobradinha|2x1|2 x 1|2 por 1|leve|compre|combo|cortesia) "
 )
+#: The beer brands' other drinks, which some shops file under beer's NCM and menus list next to beers:
+#: Antarctica's soft drinks ("REFRI ANTARCTICA GUARANA PET 2LT", Soda, Tônica) and Skol Beats (flavoured
+#: drinks). Antarctica's Subzero is beer.
+_NOT_BEER = re.compile(r" (guarana|refri|refrigerantes?|soda|tonica|beats) ")
 _RETAIL = re.compile(
     r" (cx|cxa|caixa|pack|pck|fardo|fd|pct|pacote|kit|engradado|growler|refil|barril|keg|display|bag) "
 )
@@ -164,6 +174,18 @@ class ServingReader:
             key=lambda pair: -len(pair[0]),
         )
         self.brand_by_slug = {brand.slug: brand for brand in catalog.brands}
+        # A brand whose own alias names another brand ("antarctica original") carries its maker's name, which
+        # is no second brand on its lines, in either order ("CERVEJA ORIGINAL ANTARCTICA 600ML" is Original).
+        self.makers = {
+            brand.slug: {
+                other.slug
+                for other in catalog.brands
+                for name in other.aliases
+                for own in brand.aliases
+                if other.slug != brand.slug and words(name) in words(own)
+            }
+            for brand in catalog.brands
+        }
 
     def read(self, description: str, assume_bottle: bool = False) -> Serving:
         """The serving a description sells, or NotAServing with the reason. With `assume_bottle` (a bar's
@@ -172,6 +194,8 @@ class ServingReader:
         text = plain(description)
         padded = words(text)
         zero = bool(_ZERO.search(padded) or _ZERO_PERCENT.search(description))
+        if _NOT_BEER.search(padded):
+            raise NotAServing("not beer")
         if _PROMOTION.search(padded):
             raise NotAServing("promotion")
         if _RETAIL.search(padded):
@@ -257,6 +281,9 @@ class ServingReader:
             if alias in text:
                 found.setdefault(brand.slug, (brand, alias.strip()))
                 text = text.replace(alias, " ")
+        named = {beer.brand} if beer is not None else set(found)
+        makers = {maker for slug in named for maker in self.makers.get(slug, ())}
+        found = {slug: pair for slug, pair in found.items() if slug not in makers}
         if beer is not None:
             if set(found) - {beer.brand}:
                 raise NotAServing("two brands")
