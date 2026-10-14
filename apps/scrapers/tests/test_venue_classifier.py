@@ -21,6 +21,7 @@ from cb_scrapers.models.contract import ClassifierVote
 from cb_scrapers.places import GooglePlaces, PlaceHit
 from cb_scrapers.venue_classifier import (
     EVIDENCE,
+    RETAIL_REASON,
     VENUE_KINDS,
     VenueClassifier,
     VenueEvidence,
@@ -31,6 +32,8 @@ from cb_scrapers.venue_classifier import (
     combine,
     evidence_lines,
     parse_vote,
+    retail_verdict,
+    settle_retail,
 )
 from cb_scrapers.venue_evidence import (
     ClassifierApi,
@@ -265,24 +268,33 @@ def test_asks_google_first_when_the_evidence_is_thin_and_keeps_only_the_place_id
     assert "Casagrande" not in json.dumps(result.to_json()["reasons"])
 
 
+#: Registered as a bar (not retail): the votes decide, the register's retail rule stays out of it.
+BAR_REGISTER = company(cnae=5611204, trade_name="BAR ALTAS HORAS")
+
+
 def test_votes_again_with_google_when_the_first_votes_disagree() -> None:
     a = FakeVoter("g", [answer("bar", True), answer("deposito", True)])
     b = FakeVoter("w", [answer("deposito", True), answer("deposito", True)])
     places = FakePlaces(HIT)
     run = classifier(a, b, places)
-    result = run.classify(evidence(company=company()))
+    result = run.classify(evidence(company=BAR_REGISTER))
     assert result.certain and result.kind == "deposito" and run.calls == 4 and places.calls == 1
     # Without Google, a disagreement stays uncertain.
     a2, b2 = FakeVoter("g", [answer("bar", True)]), FakeVoter("w", [answer("deposito", True)])
-    assert not classifier(a2, b2, None).classify(evidence(company=company())).certain
+    assert not classifier(a2, b2, None).classify(evidence(company=BAR_REGISTER)).certain
 
 
 def test_a_failed_model_call_is_an_uncertain_result_and_counts_against_the_budget() -> None:
     a, b = FakeVoter("g", [None]), FakeVoter("w", [answer()])
     run = classifier(a, b, None, max_calls=3)
-    result = run.classify(evidence(company=company()))
+    result = run.classify(evidence(company=BAR_REGISTER))
     assert not result.certain and run.errors == ["g: HTTP 429: quota"]
     assert run.exhausted
+    # A retail register settles the venue all the same: the rule doesn't need both votes.
+    a, b = FakeVoter("g", [None]), FakeVoter("w", [answer("bar", True)])
+    settled = classifier(a, b).classify(evidence(company=company(cnae=4712100, trade_name="MERCADINHO X")))
+    assert (settled.kind, settled.on_site, settled.certain) == ("outro", False, True)
+    assert "only one model answered" in settled.reasons
 
 
 # Model clients and Google Places ----------------------------------------------------------------------------
@@ -652,3 +664,203 @@ def test_shop_prices_alone_dont_overrule_a_registered_bar_unless_both_models_are
 def test_altas_horas_is_in_the_owner_labelled_eval_set() -> None:
     labels = {name: (cnpj, expected) for name, cnpj, expected, _ in classify_probe.OWNER_LABELS}
     assert labels["Bar Altas Horas"] == ("33894100000168", "deposito")
+
+
+# The register's retail rule (owner, 14 Oct 2026) ------------------------------------------------------------
+
+
+def retail(cnae: int, trade_name: str, secondary: tuple[int, ...] = ()) -> Company:
+    return company(cnae=cnae, trade_name=trade_name, legal_name=None, secondary=secondary)
+
+
+#: Cans at 1.3x the city's shop median (0.58x the bars'): shop-level prices.
+SHOP_PRICED = {"n": 2, "by_type": [{"type": "lata", "n": 2, "median_ppn_minor": 1500}]}
+
+
+def test_a_registered_minimarket_is_a_store_even_when_both_models_say_on_site() -> None:
+    """A miss of the 14 Oct probe (venue 2545): a minimarket with a snack bar; both models said on site."""
+    e = evidence(
+        venue_id=2545,
+        name="Mercadinho e Lanchonete Cantinho da Economia",
+        company=retail(4712100, "MERCADINHO E LANCHONETE CANTINHO DA ECONOMIA", (5611203,)),
+        prices=SHOP_PRICED,
+        medians=CITY,
+    )
+    assert e.shop_level_prices() and not e.bar_level_prices()
+    a, b = FakeVoter("g", [answer("outro", True, 0.85)]), FakeVoter("w", [answer("outro", True, 0.85)])
+    result = classifier(a, b).classify(e)
+    assert (result.kind, result.on_site, result.certain, result.category) == ("outro", False, True, "mercado")
+    assert result.confidence == 1.0
+    assert result.reasons[:2] == [RETAIL_REASON, "main activity 4712-1/00: a store"]
+    # The votes stay as they were: the record, and each model's own accuracy in the evaluation.
+    assert [(vote.kind, vote.on_site) for vote in result.votes] == [("outro", True), ("outro", True)]
+    assert "cnpj" in result.to_json()["evidence"]
+
+
+def test_a_convenience_store_the_models_split_on_is_take_away_without_asking_google() -> None:
+    """A miss of the 14 Oct probe (venue 2518): one model said on site, the other take away."""
+    e = evidence(
+        venue_id=2518,
+        name="Conveniencia 29 de Marco",
+        company=retail(4729602, "CONVENIENCIA 29"),
+        prices=SHOP_PRICED,
+        medians=CITY,
+    )
+    a, b = FakeVoter("g", [answer("outro", True, 0.9)]), FakeVoter("w", [answer("outro", False, 0.95)])
+    places = FakePlaces(HIT)
+    run = classifier(a, b, places)
+    result = run.classify(e)
+    assert (result.kind, result.on_site, result.certain) == ("outro", False, True)
+    assert result.reasons[:3] == [
+        RETAIL_REASON,
+        "main activity 4729-6/02: a store",
+        "the models disagree: g says outro (on site), w says outro (take away)",
+    ]
+    # The register settles it: no Google Places lookup and no second round of votes.
+    assert places.calls == 0 and run.calls == 2 and result.google_place_id is None
+
+
+def test_a_registered_bar_with_retail_secondary_activities_is_left_to_the_votes() -> None:
+    bar = company(
+        cnae=5611204, trade_name="BAR DO ZE", legal_name=None, secondary=(4723700, 4712100, 4729602)
+    )
+    e = evidence(name="Bar do Zé", company=bar)
+    a, b = FakeVoter("g", [answer("bar", True, 0.9)]), FakeVoter("w", [answer("boteco", True, 0.92)])
+    result = classifier(a, b).classify(e)
+    assert (result.category, result.on_site, result.certain) == ("bar", True, True)
+    assert RETAIL_REASON not in result.reasons
+    # A split stays a split: the rule never makes a store of a registered bar.
+    a, b = FakeVoter("g", [answer("bar", True, 0.9)]), FakeVoter("w", [answer("outro", False, 0.9)])
+    split = classifier(a, b).classify(evidence(name="Bar do Zé", company=bar))
+    assert not split.certain and RETAIL_REASON not in split.reasons
+    # Restaurants, bars, snack bars (5611-2/01 to /05) are never retail, whatever their secondary activities.
+    for code in (5611201, 5611202, 5611203, 5611204, 5611205):
+        assert retail_verdict(evidence(company=company(cnae=code, secondary=(4723700, 4712100)))) is None
+
+
+def test_drinks_retail_is_a_depósito_whatever_the_models_say() -> None:
+    e = evidence(name="Bar Altas Horas", company=retail(4723700, "ALTAS HORAS"))
+    a, b = FakeVoter("g", [answer("bar", True, 0.95)]), FakeVoter("w", [answer("bar", True, 0.95)])
+    result = classifier(a, b).classify(e)
+    assert (result.kind, result.on_site, result.certain) == ("deposito", False, True)
+    assert result.reasons[:2] == [RETAIL_REASON, "main activity 4723-7/00: drinks retail, a depósito"]
+
+
+def test_the_retail_rule_tells_a_depósito_by_its_name_but_never_a_supermarket() -> None:
+    def kind(cnae: int | None, name: str, trade_name: str | None = None) -> str | None:
+        # The legal name (company()'s) says "COMERCIO DE BEBIDAS", and drinks retail is a secondary activity.
+        register = company(cnae=cnae, trade_name=trade_name, secondary=(4723700,))
+        found = retail_verdict(evidence(name=name, company=register))
+        return found[0] if found else None
+
+    assert kind(4729602, "Conveniência e Depósito Boa Sorte") == "deposito"
+    assert kind(4712100, "Mercadinho do Zé", "DISTRIBUIDORA DO ZE") == "deposito"
+    # Assaí's company is "Sendas Distribuidora": a hypermarket is a store whatever its name says.
+    assert kind(4711301, "Sendas Distribuidora") == "outro"
+    # Neither the legal name ("… COMERCIO DE BEBIDAS LTDA") nor a drinks-retail secondary activity counts.
+    assert kind(4712100, "Mercadinho Bom Preço", "MERCADINHO BOM PRECO") == "outro"
+    assert kind(4721102, "Padaria Pão Quente", "PADARIA PAO QUENTE") == "outro"
+    # Wholesale (division 46), no register, no main activity: the votes decide.
+    assert kind(4635402, "Distribuidora de Bebidas X") is None
+    assert kind(None, "Loja") is None and retail_verdict(evidence()) is None
+
+
+#: O Baiano Churrasqueiro (owner, 11 Oct 2026): a butcher's selling Heineken 600 ml at R$ 19.90 at its tables,
+#: which Preço da Hora lists as a restaurant. Bottles at 2.65x the city's shop median.
+BAIANO_PRICES = {"n": 2, "by_type": [{"type": "garrafa", "n": 2, "median_ppn_minor": 3317}]}
+BOTTLE_CITY = {
+    "bar": 2500,
+    "shop": 1200,
+    "types": {"garrafa": {"bar": 2600, "shop": 1250}, "lata": {"bar": 2571, "shop": 1150}},
+}
+
+
+def test_a_shop_at_bar_prices_is_left_to_the_votes_as_preco_da_hora_lists_it_as_a_restaurant() -> None:
+    butcher = retail(4722901, "O BAIANO CHURRASQUEIRO")
+    e = evidence(name="O Baiano Churrasqueiro", company=butcher, prices=BAIANO_PRICES, medians=BOTTLE_CITY)
+    assert e.bar_level_prices() and retail_verdict(e) is None
+    a = FakeVoter("g", [answer("restaurante", True, 0.9)])
+    b = FakeVoter("w", [answer("restaurante", True, 0.85)])
+    result = classifier(a, b).classify(e)
+    assert (result.kind, result.on_site, result.certain) == ("restaurante", True, True)
+    assert RETAIL_REASON not in result.reasons
+    # Shop-level prices, no prices, or none comparable with a shop median: the rule applies.
+    garrafa_bars_only = {"bar": 2500, "types": {"garrafa": {"bar": 2600}}}
+    for prices, medians in ((SHOP_PRICED, CITY), (None, None), (BAIANO_PRICES, garrafa_bars_only)):
+        plain = evidence(name="O Baiano Churrasqueiro", company=butcher, prices=prices, medians=medians)
+        assert retail_verdict(plain) == ("outro", "main activity 4722-9/01: a store")
+    # Exactly twice the shop median counts; most of the prices must be that dear.
+    twice = {"n": 1, "by_type": [{"type": "garrafa", "n": 1, "median_ppn_minor": 2500}]}
+    assert evidence(prices=twice, medians=BOTTLE_CITY).bar_level_prices()
+    mixed = {
+        "n": 6,
+        "by_type": [
+            {"type": "garrafa", "n": 2, "median_ppn_minor": 3317},
+            {"type": "lata", "n": 4, "median_ppn_minor": 1200},
+        ],
+    }
+    assert not evidence(prices=mixed, medians=BOTTLE_CITY).bar_level_prices()
+    # Never where Preço da Hora's rule doesn't reach: a supermarket's or a store's own prices, a depósito's,
+    # and the dear beer of fuel stations, convenience stores and other food retail, still to take away.
+    for cnae, name in (
+        (4712100, "Mercadinho Bom Preço"),
+        (4729602, "Conveniência Boa Sorte"),
+        # Convenience stores (owner, 12 Oct 2026): by their activity, whatever the name, or by a plural name.
+        (4729602, "Ponto Gelado"),
+        (4789099, "Conveniências Boa Sorte"),
+        (4723700, "Ponto Gelado"),
+        (4731800, "Posto Bela Vista"),
+        (4729699, "Ponto do Gelo"),
+    ):
+        priced = evidence(name=name, company=retail(cnae, name), prices=BAIANO_PRICES, medians=BOTTLE_CITY)
+        assert retail_verdict(priced) is not None, name
+
+
+@pytest.mark.usefixtures("adapter_env")
+def test_the_adapter_sends_the_retail_verdict_but_never_over_an_owner_decision(
+    polite: Callable[..., PoliteClient], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from cb_scrapers.adapters import venue_classify
+
+    monkeypatch.setattr(
+        venue_classify, "load_review", lambda: {"33333333000133": ReviewRow("33333333000133", "keep")}
+    )
+    items = [
+        candidate(1, name="Mercadinho Util", cnpj="11111111000111"),
+        candidate(2, name="Mercadinho Travado", cnpj="22222222000122", locked=True),
+        candidate(3, name="Mercadinho Mantido", cnpj="33333333000133"),
+    ]
+    api = FakeApi("apply", items)
+    # Both models call it a bar: a certain answer the register overrules.
+    adapter = make_adapter(
+        polite, api, [FakeVoter("g", [answer("bar", True)]), FakeVoter("w", [answer("bar", True)])]
+    )
+    adapter.evidence.register = FakeRegister(  # type: ignore[assignment]
+        {
+            cnpj: retail(4712100, "MERCADINHO")
+            for cnpj in ("11111111000111", "22222222000122", "33333333000133")
+        }
+    )
+    run(adapter)
+    sent = [item for path, body in api.requests if path.endswith("/results") for item in body["items"]]
+    assert [item["venue_id"] for item in sent] == [1]
+    assert (sent[0]["kind"], sent[0]["on_site"], sent[0]["certain"]) == ("outro", False, True)
+    assert sent[0]["reasons"][0] == RETAIL_REASON
+    # What the API's strict contract takes.
+    ClassifierResults.model_validate({"items": sent})
+    assert adapter.counts["skipped: owner decided"] == 1
+    assert adapter.counts["skipped: in the review list"] == 1
+
+
+def test_the_evaluation_counts_the_answers_the_retail_rule_settled() -> None:
+    assert classify_probe.CNAE_LABELS[4723700] == ("deposito", frozenset({"deposito"}))
+    venue = candidate(2545, name="Mercadinho e Lanchonete Cantinho da Economia")
+    label = classify_probe.Label("cnae", "mercado", frozenset({"outro"}))
+    voted = combine(2545, [vote("outro", True, 0.85), vote("outro", True, 0.85, model="m2")])
+    assert voted.certain and not classify_probe.right(label, voted.kind, voted.on_site)
+    settled = settle_retail(voted, "outro", "main activity 4712-1/00: a store")
+    text = classify_probe.report([(venue, label, settled)], [], [])
+    assert "Retail register rule (main activity in CNAE division 47: never on site): 1 of 1 answers" in text
+    assert "## Misses and uncertain answers (0)" in text
+    # Each model alone still shows the votes' miss.
+    assert "m1 0/1, m2 0/1" in text

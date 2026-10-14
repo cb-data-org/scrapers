@@ -7,10 +7,11 @@ confirm by hand whether a venue is a depósito, a bar, a restaurant or a store.
 2. Venues in data/seed/venue-review.csv (the owner's decisions) and venues the API marks as locked (a person
    decided what they are) are skipped: the owner always wins.
 3. Each venue's evidence goes to Gemini and Workers AI; Google Places is asked when the free evidence is thin
-   or the votes disagree (at most MAX_PLACES a run; only the place id is kept).
+   or the votes disagree (at most MAX_PLACES a run; only the place id is kept). A retail main activity (CNAE
+   division 47) then settles it whatever the votes say: never on site, a store or a depósito.
 4. The results go back (venue-classifier/results, 25 a request). In `suggest` mode (the default until the
    evaluation probe reaches 95 %) the API only records them; in `apply` it changes the venues the votes agree
-   on, with an audit row by ai:classifier.
+   on (or the register settles), with an audit row by ai:classifier.
 
 Needs CB_API_URL, CB_INGEST_TOKEN, CB_GEMINI_KEY, CB_CF_ACCOUNT_ID and CB_CF_AI_TOKEN; CB_GOOGLE_PLACES_KEY
 and CB_META_TOKEN + CB_IG_USER_ID add evidence. CB_CLASSIFY_LIMIT (venues a run, default 30),

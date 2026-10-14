@@ -70,6 +70,37 @@ SHOP_PRICE_RATIO = 1.3
 #: Shop prices count for this long, and a median needs this many of them.
 SHOP_PRICE_DAYS = 60
 SHOP_PRICE_MIN = 3
+#: Supermarkets and stores, and depósitos, told by name: the shops whose cold single beers we list (#438).
+STORE_NAME = re.compile(
+    r"\b(super ?mercados?|hiper ?mercados?|mini ?mercados?|mercadinho|mercado|atacad\w*|atakarejo|atacarejo"
+    r"|assai|gbarbosa|bompreco|carrefour|hiperideal|mercearia|emporio|conveniencias?)\b"
+)
+#: Convenience stores (4729-6/02) are stores, whatever their names say (owner, 12 Oct 2026: "Casagrande
+#: Conveniências: it is a store"). Their prices still aren't the shop prices bars are compared with.
+CONVENIENCE_CNAE = 4729602
+DEPOSITO_NAME = re.compile(r"\b(deposito|distribuidora|comercio de bebidas|bebidas)\b")
+#: A shop that isn't a bar by its registered activity but charges at least this many times the supermarkets'
+#: price for the same beer is serving it at a table (owner, 11 Oct 2026: O Baiano Churrasqueiro, registered
+#: as a butcher's, sells Heineken 600 ml at R$ 15). Those prices list as bar prices (on_site), the shop as a
+#: restaurant; a depósito's or a store's are bar prices too, while its cheap ones stay in its own category.
+#: Preço da Hora applies it; the venue classifier leaves such a retail shop to its votes.
+BAR_PRICE_RATIO = 2.0
+#: Shops whose dear beer is still to take away: fuel stations and convenience stores (and other food retail,
+#: 4729-6/99, which many of them register).
+TAKEAWAY_CNAE = frozenset({4731800, 4729699, CONVENIENCE_CNAE})
+#: Main activities (CNAE) of depósitos: drinks retail and wholesale.
+DEPOSITO_CNAE = frozenset({4723700, 4635401, 4635402, 4635403, 4635499})
+
+
+def shop_category(name: str, cnae: int | None) -> str | None:
+    """A shop's category: "deposito", "mercado", or None (pharmacies, bakeries, fuel stations…)."""
+    plain = normalize(name)
+    if cnae in DEPOSITO_CNAE or DEPOSITO_NAME.search(plain):
+        return "deposito"
+    if cnae in SUPERMARKETS or cnae == CONVENIENCE_CNAE or STORE_NAME.search(plain):
+        return "mercado"
+    return None
+
 
 Decision = Literal["show", "review", "reject"]
 

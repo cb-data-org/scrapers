@@ -125,6 +125,8 @@ REGISTER = {
     MINHA_RECEITA.format(cnpj="33444555000166"): register_body(
         "33444555000166", 4722901, "O BAIANO CHURRASQUEIRO"
     ),
+    # A convenience store whose name doesn't say so.
+    MINHA_RECEITA.format(cnpj="66777888000155"): register_body("66777888000155", 4729602, "PONTO GELADO"),
 }
 
 
@@ -953,6 +955,33 @@ def test_shop_category() -> None:
     assert shop_category("DISTRIBUIDORA DE BEBIDAS Y", None) == "deposito"
     assert shop_category("LOJA Z", 4723700) == "deposito"
     assert shop_category("FARMACIA W", None) is None
+    # Convenience stores are stores (owner, 12 Oct 2026): by their activity, or by name, plural too.
+    assert shop_category("PONTO GELADO", 4729602) == "mercado"
+    assert shop_category("Conveniências Boa Sorte", None) == "mercado"
+    assert shop_category("CONVENIENCIAS BOA SORTE", 4789099) == "mercado"
+
+
+def test_a_convenience_store_at_bar_prices_stays_a_store(adapter: PrecoDaHora) -> None:
+    """Owner, 12 Oct 2026: a conveniência is a store, however dear its cold beer. Registered as one
+    (4729-6/02) under a name that doesn't say so, it lists as a store with take-away prices, never as a
+    restaurant."""
+    adapter.stores = True
+    store = shop("SUPERMERCADO BOM PRECO LTDA", "11222333000144", -13.0110, -38.4890)
+    corner = shop("PONTO GELADO", "66777888000155", -13.0102, -38.4884)
+    items = search(
+        adapter,
+        page(
+            *(sale("CERV BRAHMA CHOPP LT 350ML", price, store) for price in (2.99, 3.09, 3.19)),
+            sale("CERV BRAHMA CHOPP LT 350ML", 9.0, corner),
+        ),
+        key="chopp @ rio-vermelho cheap",
+    )
+    venue = next(
+        item.data for item in items if item.kind == "venue" and item.data["cnpj"] == "66777888000155"
+    )
+    assert (venue["kind"], venue["on_site"]) == ("outro", False)
+    deals = [item.data for item in items if item.kind == "deal" and item.data["price"] == 9.0]
+    assert [(deal["venue_ref"], deal["on_site"]) for deal in deals] == [("cnpj:66777888000155", None)]
 
 
 # Barcodes (owner, 11 Oct 2026): the same code in every shop, however each writes the product.

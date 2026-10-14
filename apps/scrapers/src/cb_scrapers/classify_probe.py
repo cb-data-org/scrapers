@@ -5,13 +5,14 @@ mirror's GitHub Actions (Source probe, probe=classify) before the classifier may
 
 Read-only: it asks the admin API for the venues (the ingest token's candidates endpoint) and never sends a
 result. The same pipeline as the daily adapter (venue_evidence.py, venue_classifier.py), Google Places
-included when CB_GOOGLE_PLACES_KEY is set. The labelled set:
+included when CB_GOOGLE_PLACES_KEY is set, and the register's retail rule after the votes (a main activity in
+CNAE division 47 is never on site; the report counts the answers it settled). The labelled set:
 
 - the review list (data/seed/venue-review.csv): keep → a place to drink (the bar category), hide → not one
   (a store or a depósito); merges are skipped;
 - OWNER_LABELS, the owner's own labels of 12 Oct 2026;
 - a sample of venues whose main registered activity says plainly what they are (bars, restaurants,
-  supermarkets, convenience stores): reported apart, as the register is part of the evidence.
+  supermarkets, convenience stores, drinks retail): reported apart, as the register is part of the evidence.
 
 The gate is the owner-labelled groups: at least GATE of the certain answers right. The report (report.md,
 results.json) lists accuracy per class, coverage (certain answers), each model alone, and every miss.
@@ -37,7 +38,7 @@ from .cnpj import CnpjRegister, default_cache_file
 from .core import PoliteClient, normalize
 from .core.cache import cache_dir
 from .places import GooglePlaces
-from .venue_classifier import THRESHOLD, Result, VenueClassifier, Vote, category
+from .venue_classifier import RETAIL_REASON, THRESHOLD, Result, VenueClassifier, Vote, category
 from .venue_evidence import ClassifierApi, EvidenceBuilder, Instagram
 from .venues import ShopBook, load_review
 
@@ -65,6 +66,7 @@ CNAE_LABELS: dict[int, tuple[str, frozenset[str]]] = {
     4711302: ("mercado", frozenset({"outro"})),
     4712100: ("mercado", frozenset({"outro"})),
     4729602: ("mercado", frozenset({"outro"})),
+    4723700: ("deposito", frozenset({"deposito"})),
 }
 GROUPS = {
     "review": "Review list (keep/hide)",
@@ -157,6 +159,12 @@ def report(rows: list[tuple[dict[str, Any], Label, Result]], missing: list[str],
         lines.append(
             f"| {name} | {counts.get('n', 0)} | {counts.get('certain', 0)} | {counts.get('right', 0)} |"
         )
+    settled = sum(1 for _, _, result in rows if result.reasons[:1] == [RETAIL_REASON])
+    lines += [
+        "",
+        f"Retail register rule (main activity in CNAE division 47: never on site): {settled} of {len(rows)} "
+        "answers settled by it after the votes; each model alone still shows what the votes said.",
+    ]
     misses = [
         (venue, label, result)
         for venue, label, result in rows

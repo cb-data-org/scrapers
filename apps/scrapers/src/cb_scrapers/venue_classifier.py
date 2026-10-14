@@ -13,8 +13,16 @@ result:
 - uncertain: anything else (a disagreement, low confidence, a model that didn't answer). Nothing changes; the
   venue is tried again on a later run, with Google Places as extra evidence when the budget allows.
 
+After the votes, the register settles retail (owner, 14 Oct 2026): a main activity in CNAE division 47
+(supermarkets, minimarkets, bakeries, drinks retail, convenience stores…) is never a place to drink, so the
+result is certain, take away, a depósito for drinks retail (4723-7/00) or a depósito's name, else a store
+(`retail_verdict`). Left to the votes: a bar or restaurant (5611-2/01 to /05) with a retail secondary
+activity, and a shop Preço da Hora lists as a restaurant for its bar-level prices (owner, 11 Oct 2026). Owner
+decisions still win: the adapter skips them and the API never applies over them.
+
 Google Places is looked up when the free evidence is thin (no register, no map listing) or the votes don't
-agree; its answer stays in memory (only the place id is kept: Google's terms).
+agree, unless the register settles the venue; its answer stays in memory (only the place id is kept: Google's
+terms).
 """
 
 from __future__ import annotations
@@ -27,10 +35,11 @@ from dataclasses import dataclass, field
 from typing import Any, Literal
 
 from .ai.workers_ai import TextReply
-from .cnae import describe
+from .cnae import code_text, describe
 from .cnpj import Company
+from .core import normalize
 from .places import GooglePlaces, PlaceHit
-from .venues import ShopRecord
+from .venues import BAR_PRICE_RATIO, DEPOSITO_NAME, TAKEAWAY_CNAE, ShopRecord, shop_category
 
 log = logging.getLogger(__name__)
 
@@ -126,6 +135,13 @@ class VenueEvidence:
         low = sum(level.n for level in levels if level.shop_level)
         return low >= SHOP_LEVEL_MIN and 2 * low >= sum(level.n for level in levels)
 
+    def bar_level_prices(self) -> bool:
+        """Prices only a table charges, by Preço da Hora's rule (owner, 11 Oct 2026): BAR_PRICE_RATIO times
+        the shops' median or more, for most of the prices comparable with a shop median (none: no)."""
+        levels = [level for level in self.price_levels() if level.shop]
+        high = sum(level.n for level in levels if level.bar_level)
+        return high > 0 and 2 * high >= sum(level.n for level in levels)
+
 
 #: A format type's median at most this share of the bars' median is a shop's price.
 SHOP_LEVEL_BAR_RATIO = 0.7
@@ -134,6 +150,13 @@ SHOP_LEVEL_MIN = 2
 BAR_CNAE = frozenset({5611201, 5611204, 5611205})
 #: Both votes must be this sure to make a registered bar a shop on shop-level prices.
 BAR_CNAE_THRESHOLD = 0.9
+#: Retail trade as the main activity (CNAE division 47): never a place to drink, whatever the votes say.
+RETAIL_DIVISION = 47
+RETAIL_REASON = "Retail CNAE (47xx): not a drink-on-site place"
+#: Drinks retail (comércio varejista de bebidas): a depósito.
+DRINKS_RETAIL_CNAE = 4723700
+#: Hypermarkets and supermarkets: stores whatever their names say (Assaí's company is "Sendas Distribuidora").
+SUPERMARKET_CNAE = frozenset({4711301, 4711302})
 TYPE_NAMES = {
     "lata": "cans",
     "long_neck": "long necks",
@@ -158,6 +181,10 @@ class PriceLevel:
             (self.shop and self.median <= self.shop)
             or (self.bar and self.median <= SHOP_LEVEL_BAR_RATIO * self.bar)
         )
+
+    @property
+    def bar_level(self) -> bool:
+        return bool(self.shop and self.median >= BAR_PRICE_RATIO * self.shop)
 
     def text(self) -> str:
         parts = [f"{TYPE_NAMES.get(self.type, self.type)} ({self.n}) {_money(self.median)}/L"]
@@ -478,6 +505,41 @@ def combine(
     return Result(venue_id, kind, first.on_site, confidence, certain, reasons, evidence, valid)
 
 
+def retail_verdict(evidence: VenueEvidence) -> tuple[str, str] | None:
+    """(kind, why) when the main activity is retail (CNAE division 47): never on site, "deposito" for drinks
+    retail or a depósito's name (not for a supermarket), else "outro" (a store). None for any other main
+    activity (a bar or restaurant with a retail secondary activity is the votes' to decide), and for a shop
+    Preço da Hora lists as a restaurant (owner, 11 Oct 2026): not a store or depósito by its activity or
+    name, not one whose dear beer is still to take away, with bar-level prices (O Baiano Churrasqueiro, a
+    butcher's). No comparable prices: the rule applies."""
+    company = evidence.company
+    if company is None or company.cnae is None or company.cnae // 100_000 != RETAIL_DIVISION:
+        return None
+    if (
+        shop_category(company.trade_name or evidence.name, company.cnae) is None
+        and company.cnae not in TAKEAWAY_CNAE
+        and evidence.bar_level_prices()
+    ):
+        return None
+    main = f"main activity {code_text(company.cnae)}"
+    if company.cnae == DRINKS_RETAIL_CNAE:
+        return "deposito", f"{main}: drinks retail, a depósito"
+    names = [normalize(name) for name in (evidence.name, company.trade_name) if name]
+    if company.cnae not in SUPERMARKET_CNAE and any(DEPOSITO_NAME.search(name) for name in names):
+        return "deposito", f"{main} and a depósito's name: a depósito"
+    return "outro", f"{main}: a store"
+
+
+def settle_retail(result: Result, kind: str, why: str) -> Result:
+    """The register's verdict over the votes (kept for the record): take away, certain; confidence 1, as the
+    rule, not the models, decides."""
+    result.kind, result.on_site, result.certain, result.confidence = kind, False, True, 1.0
+    result.reasons = [RETAIL_REASON, why, *result.reasons[:2]]
+    if "cnpj" not in result.evidence:
+        result.evidence.append("cnpj")
+    return result
+
+
 @dataclass(frozen=True, slots=True)
 class Voter:
     """One model: its name and how to ask it (a prompt in, a TextReply out)."""
@@ -531,15 +593,18 @@ class VenueClassifier:
     def classify(self, evidence: VenueEvidence, current_kind: str | None = None) -> Result:
         if evidence.weak():
             self.look_up_place(evidence)
+        retail = retail_verdict(evidence)
         result = combine(
             evidence.venue_id, self.vote(evidence), current_kind=current_kind, threshold=self.threshold
         )
-        if not result.certain and not self.exhausted and self.look_up_place(evidence):
-            # A second round with what Google knows of the place.
+        if not result.certain and retail is None and not self.exhausted and self.look_up_place(evidence):
+            # A second round with what Google knows of the place (none for retail: the register settles it).
             result = combine(
                 evidence.venue_id, self.vote(evidence), current_kind=current_kind, threshold=self.threshold
             )
-        if (
+        if retail is not None:
+            settle_retail(result, *retail)
+        elif (
             result.certain
             and result.category != "bar"
             and evidence.company is not None

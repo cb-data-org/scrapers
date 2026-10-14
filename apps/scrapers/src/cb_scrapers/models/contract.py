@@ -2570,7 +2570,7 @@ class ClassifierResult(BaseModel):
     confidence: Annotated[float, Field(ge=0.0, le=1.0)]
     certain: bool
     """
-    Both votes agree above the threshold; false: recorded as uncertain, never applied
+    Both votes agree above the threshold, or the register settles it (a retail main activity, CNAE division 47, is never on site, bar-priced shops aside); false: recorded as uncertain, never applied
     """
     reasons: Annotated[list[Reason], Field(max_length=5)]
     """

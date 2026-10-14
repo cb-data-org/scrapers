@@ -63,9 +63,11 @@ from ..geo import BairroIndex
 from ..geo.bairros import Bairro
 from ..matching import Candidate, best_match
 from ..venues import (
+    BAR_PRICE_RATIO,
     SCOPE,
     SHOP_PRICE_MIN,
     SUPERMARKETS,
+    TAKEAWAY_CNAE,
     Evidence,
     ReviewRow,
     ShopBook,
@@ -74,6 +76,7 @@ from ..venues import (
     Verdict,
     judge,
     load_review,
+    shop_category,
     summary_table,
 )
 from .osm_venues import OsmVenues, venue_kind
@@ -313,31 +316,6 @@ RETAIL = re.compile(
     r"|gbarbosa|bompreco|carrefour|hiperideal|farmacias?|drogarias?|drogasil|combustive\w*|distribuidora"
     r"|deposito|padaria|panificadora)\b"
 )
-#: Supermarkets and stores, and depósitos, told by name: the shops whose cold single beers we list (#438).
-STORE_NAME = re.compile(
-    r"\b(super ?mercados?|hiper ?mercados?|mini ?mercados?|mercadinho|mercado|atacad\w*|atakarejo|atacarejo"
-    r"|assai|gbarbosa|bompreco|carrefour|hiperideal|mercearia|emporio|conveniencia)\b"
-)
-DEPOSITO_NAME = re.compile(r"\b(deposito|distribuidora|comercio de bebidas|bebidas)\b")
-#: A shop that isn't a bar by its registered activity but charges at least this many times the supermarkets'
-#: price for the same beer is serving it at a table (owner, 11 Oct 2026: O Baiano Churrasqueiro, registered
-#: as a butcher's, sells Heineken 600 ml at R$ 15). Those prices list as bar prices (on_site), the shop as a
-#: restaurant; a depósito's or a store's are bar prices too, while its cheap ones stay in its own category.
-BAR_PRICE_RATIO = 2.0
-#: Shops whose dear beer is still to take away: fuel stations and convenience stores.
-TAKEAWAY_CNAE = frozenset({4731800, 4729699})
-#: Main activities (CNAE) of depósitos: drinks retail and wholesale.
-DEPOSITO_CNAE = frozenset({4723700, 4635401, 4635402, 4635403, 4635499})
-
-
-def shop_category(name: str, cnae: int | None) -> str | None:
-    """A shop's category: "deposito", "mercado", or None (pharmacies, bakeries, fuel stations…)."""
-    plain = normalize(name)
-    if cnae in DEPOSITO_CNAE or DEPOSITO_NAME.search(plain):
-        return "deposito"
-    if cnae in SUPERMARKETS or STORE_NAME.search(plain):
-        return "mercado"
-    return None
 
 
 LEGAL_SUFFIX = re.compile(r"(\s+(ltda|limitada|limitad|me|epp|eireli|s/?a|s\.a\.?|cia)\.?)+$", re.IGNORECASE)
