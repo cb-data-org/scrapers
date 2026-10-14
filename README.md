@@ -10,8 +10,9 @@ lives elsewhere; issues and pull requests here aren't watched. Contact: contato@
 ## What runs here
 
 - **Preço da Hora Bahia** (SEFAZ-BA): beer sales from electronic receipts (NFC-e), searched by beer around the city,
-  every hour, one search every 20 seconds and at most 30 a run, stopping at the first sign the site doesn't want us
-  (HTTP 403/429, a CAPTCHA, an unexpected page). It never works around a CAPTCHA.
+  in runs of at most 30 searches at least 20 seconds apart (about ten minutes), eight minutes between runs, about
+  three runs an hour, day and night. A run ends at the first sign the site doesn't want us (HTTP 403/429, a CAPTCHA,
+  an unexpected page); the next scheduled run tries again. It never works around a CAPTCHA.
 - **OpenStreetMap**: the bars, pubs and restaurants of the covered cities, once a week.
 - **Venue classifier**: once a day, a few dozen listed venues are sorted into bars, restaurants, depósitos and stores
   by two AI models (Gemini and Workers AI) reading public facts about each one: the company register (CNPJ), map
@@ -30,6 +31,6 @@ name are left out.
 - `apps/scrapers`: the Python package (`uv run cb …`), its tests and contract models.
 - `data/seed`: cities, bairro outlines and the beer catalog the scrapers read.
 - `tools/social`: the carousel generator, one generated file (`social.mjs`, don't edit) and its `package.json`.
-- `.github/workflows`: the hourly run, the weekly carousels and the tests.
+- `.github/workflows`: the Preço da Hora runs, the weekly carousels and the tests.
 
 Run the tests with `uv run pytest` and `uv run ruff check` in `apps/scrapers` (Python 3.13, [uv](https://docs.astral.sh/uv/)).

@@ -417,7 +417,7 @@ class VenueDraft(BaseModel):
     attributes: list[Literal["musica_ao_vivo", "transmite_jogos", "area_externa", "pe_na_areia"]]
     held_back: Annotated[list[HeldBackItem] | None, Field(max_length=8)] = None
     """
-    Why the scraper's checks doubt it is a place to sit and drink, with the evidence. A new place sent with it waits for the AI reviewer, which keeps or hides it by the review threshold (#416); its prices wait too
+    Why the scraper's checks doubt it is a place to sit and drink, with the evidence. A new place sent with it waits for the AI reviewer, which lists it among the bars at or above the review threshold, else as a supermarket or a depósito (#416); its prices wait too
     """
 
 
@@ -746,6 +746,89 @@ class QueueBulk(BaseModel):
     reason: Literal["dup", "spam", "wrong", "old", "other"] | None = None
     """
     Required to reject
+    """
+
+
+class Matched(BaseModel):
+    """
+    Of those, the rejections of each class
+    """
+
+    price_low: Annotated[int, Field(ge=0)]
+    not_a_bar: Annotated[int, Field(ge=0)]
+
+
+class Queued(BaseModel):
+    """
+    Put back in the queue for the AI reviewer (in a dry run: would be)
+    """
+
+    price_low: Annotated[int, Field(ge=0)]
+    not_a_bar: Annotated[int, Field(ge=0)]
+
+
+class Skipped(BaseModel):
+    """
+    Matching rejections left as they are, by why
+    """
+
+    stale: Annotated[int, Field(ge=0)]
+    superseded: Annotated[int, Field(ge=0)]
+    live: Annotated[int, Field(ge=0)]
+    waiting: Annotated[int, Field(ge=0)]
+
+
+class QueueRereviewResult(BaseModel):
+    dry_run: bool
+    scanned: Annotated[int, Field(ge=0)]
+    """
+    AI rejections of an older prompt, never re-reviewed, read in this page
+    """
+    matched: Matched
+    """
+    Of those, the rejections of each class
+    """
+    queued: Queued
+    """
+    Put back in the queue for the AI reviewer (in a dry run: would be)
+    """
+    skipped: Skipped
+    """
+    Matching rejections left as they are, by why
+    """
+    unmatched: Annotated[int, Field(ge=0)]
+    """
+    Rejections for other reasons, left as they are
+    """
+    ids: list[Id]
+    """
+    The items put back (in a dry run: that would be)
+    """
+    next: Annotated[int | None, Field(gt=0)]
+    """
+    Send it as `after` for the next page; null after the last
+    """
+
+
+class QueueRereview(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    dry_run: bool | None = True
+    """
+    Only count (the default); false puts the items back in the queue
+    """
+    since: date | None = "2026-10-10"
+    """
+    AI rejections reviewed on or after this day (UTC)
+    """
+    after: Annotated[int | None, Field(gt=0)] = None
+    """
+    Continue after this item: the previous page's `next`
+    """
+    limit: Annotated[int | None, Field(ge=1, le=100)] = 100
+    """
+    AI rejections of an older prompt read in this page
     """
 
 

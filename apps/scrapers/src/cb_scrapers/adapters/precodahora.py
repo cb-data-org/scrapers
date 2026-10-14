@@ -20,8 +20,9 @@ Once a day the adapter:
    CNPJ register) must be a bar, a restaurant or a brewery's taproom, and the evidence must not say "shop":
    secondary activities, beer sold by the box, prices like the supermarkets' in the same
    receipts, a micro-entrepreneur OpenStreetMap doesn't know. Doubtful shops are sent with their doubts
-   (VenueDraft.held_back) and wait in the queue for the AI reviewer, which keeps or hides each by the
-   review threshold (#416); their prices wait with them. The owner's decisions in data/seed/venue-review.csv
+   (VenueDraft.held_back) and wait in the queue for the AI reviewer, which lists each among the bars at or
+   above the review threshold, else as a supermarket or a depósito (#416); their prices wait with them, then
+   follow it to its list. The owner's decisions in data/seed/venue-review.csv
    still come first; each run's GitHub summary lists the held-back shops with their evidence.
 5. Sends each shop as a venue: the OpenStreetMap one when name and place match (with its CNPJ, so the map
    keeps one pin), else a new one with the trade name from the CNPJ register, the receipt's address and
@@ -1321,8 +1322,9 @@ class PrecoDaHora(Adapter):
             return
         intro = (
             "### Preço da Hora: bars held back this run\n\n"
-            "Verdict review: sent with its doubts to the AI reviewer, which keeps or hides it by the "
-            "review threshold (its score and decision are in the audit log); its prices wait for it. "
+            "Verdict review: sent with its doubts to the AI reviewer, which lists it among the bars at or "
+            "above the review threshold, else as a supermarket or a depósito (its score and decision are "
+            "in the audit log); its prices wait for it. "
             "Verdict reject: left out. `data/seed/venue-review.csv` still overrides both. "
             "“Sent before” means it may already be on the map.\n\n"
         )

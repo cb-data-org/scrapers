@@ -6,8 +6,8 @@ applied in production through the admin API.
 prices) and the venue's published prices. It suggests a decision for each (hide, keep, or merge into the
 OpenStreetMap venue it duplicates) and writes data/seed/venue-review.csv; decisions already there are kept.
 Doubtful venues (the checks' "review") get no row: the daily runs send them with their doubts to the AI
-reviewer, which keeps or hides each by the review threshold (#416), so no owner step remains. Rows marked
-pending by hand are left to the AI reviewer too.
+reviewer, which lists each as a bar or a shop by the review threshold (#416), so no owner step remains.
+Rows marked pending by hand are left to the AI reviewer too.
 
 `cb venues apply` then does what the list says: it hides the venues marked hide (which takes their prices off
 the map), puts back those marked keep, merges the duplicates, and stops counting OpenStreetMap nightclubs as

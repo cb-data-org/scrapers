@@ -183,6 +183,7 @@ function dealCategory(kind, venueOnSite, dealOnSite) {
 
 // packages/domain/src/freshness.ts
 var FRESHNESS_DAYS = { verified: 30, dated: 90, stale: 180 };
+var SHOP_PRICE_DAYS = 14;
 var dayFormatters = /* @__PURE__ */ new Map();
 function localDateParts(unixSeconds, timeZone) {
   let formatter = dayFormatters.get(timeZone);
@@ -287,6 +288,288 @@ var MARKETS = {
   br: { id: "br", currency: "BRL", locale: "pt-BR", normMl: 1e3, normLabel: "L" },
   uk: { id: "uk", currency: "GBP", locale: "en-GB", normMl: 568.261, normLabel: "pint" }
 };
+
+// packages/domain/src/names.ts
+var NAME_OVERRIDES = {
+  // The receipt split "BANDII'S" in two; the slug kept the apostrophe's place.
+  "salvador/bandii-s-espetaria-beer": "Bandii's Espetaria Beer"
+};
+var TRADE_NAMES = {
+  // Sendas Distribuidora S.A. runs the Assaí Atacadista stores.
+  "sendas distribuidora": "Assa\xED Atacadista",
+  "atakarejo distribuidor de alimentos e bebidas": "Atakarejo",
+  "atakarejo dist de alim e beb": "Atakarejo",
+  "hiperideal empreendimentos": "Hiperideal",
+  "g barbosa": "GBarbosa",
+  "g. barbosa": "GBarbosa",
+  gbarbosa: "GBarbosa",
+  cinepolis: "Cin\xE9polis",
+  "cinepolis operadora de cinemas do brasil": "Cin\xE9polis",
+  "cinemark brasil": "Cinemark",
+  "centro de atividades sesc casa do comercio": "Sesc Casa do Com\xE9rcio",
+  // "Com. de Bebidas e Prod. Alimentícios", cut short on the receipt.
+  "varanda do horto com de bebidas e prod aliment": "Varanda do Horto"
+};
+var ACCENTED_WORDS = {
+  acai: "a\xE7a\xED",
+  acais: "a\xE7a\xEDs",
+  acaraje: "acaraj\xE9",
+  acougue: "a\xE7ougue",
+  acougues: "a\xE7ougues",
+  agua: "\xE1gua",
+  aguas: "\xE1guas",
+  alem: "al\xE9m",
+  alianca: "alian\xE7a",
+  alimenticio: "aliment\xEDcio",
+  alimenticios: "aliment\xEDcios",
+  armacao: "arma\xE7\xE3o",
+  armazem: "armaz\xE9m",
+  assai: "assa\xED",
+  assuncao: "assun\xE7\xE3o",
+  atacadao: "atacad\xE3o",
+  atakadao: "atakad\xE3o",
+  atlantico: "atl\xE2ntico",
+  baratao: "barat\xE3o",
+  barreirao: "barreir\xE3o",
+  bompreco: "bompre\xE7o",
+  brandao: "brand\xE3o",
+  cafe: "caf\xE9",
+  calabetao: "calabet\xE3o",
+  calcada: "cal\xE7ada",
+  camacari: "cama\xE7ari",
+  camarao: "camar\xE3o",
+  camaroes: "camar\xF5es",
+  chale: "chal\xE9",
+  comercio: "com\xE9rcio",
+  conceicao: "concei\xE7\xE3o",
+  construcao: "constru\xE7\xE3o",
+  conveniencia: "conveni\xEAncia",
+  conveniencias: "conveni\xEAncias",
+  culinaria: "culin\xE1ria",
+  delicias: "del\xEDcias",
+  deposito: "dep\xF3sito",
+  depositos: "dep\xF3sitos",
+  economica: "econ\xF4mica",
+  economico: "econ\xF4mico",
+  emporio: "emp\xF3rio",
+  espaco: "espa\xE7o",
+  esperanca: "esperan\xE7a",
+  estacao: "esta\xE7\xE3o",
+  familia: "fam\xEDlia",
+  federacao: "federa\xE7\xE3o",
+  feirao: "feir\xE3o",
+  galvao: "galv\xE3o",
+  generos: "g\xEAneros",
+  graca: "gra\xE7a",
+  helio: "h\xE9lio",
+  hortela: "hortel\xE3",
+  imbui: "imbu\xED",
+  imperio: "imp\xE9rio",
+  industria: "ind\xFAstria",
+  irmaos: "irm\xE3os",
+  irmas: "irm\xE3s",
+  itapua: "itapu\xE3",
+  joao: "jo\xE3o",
+  jose: "jos\xE9",
+  lider: "l\xEDder",
+  macaubas: "maca\xFAbas",
+  mae: "m\xE3e",
+  mercadao: "mercad\xE3o",
+  musica: "m\xFAsica",
+  nazare: "nazar\xE9",
+  opcao: "op\xE7\xE3o",
+  panificacao: "panifica\xE7\xE3o",
+  pao: "p\xE3o",
+  paraiba: "para\xEDba",
+  paraiso: "para\xEDso",
+  pernambues: "pernambu\xE9s",
+  perseveranca: "perseveran\xE7a",
+  piata: "piat\xE3",
+  piaui: "piau\xED",
+  piraja: "piraj\xE1",
+  pituacu: "pitua\xE7u",
+  portao: "port\xE3o",
+  praca: "pra\xE7a",
+  preco: "pre\xE7o",
+  precos: "pre\xE7os",
+  raizes: "ra\xEDzes",
+  recomecar: "recome\xE7ar",
+  refeicoes: "refei\xE7\xF5es",
+  sacolao: "sacol\xE3o",
+  sao: "s\xE3o",
+  sebastiao: "sebasti\xE3o",
+  sensacao: "sensa\xE7\xE3o",
+  sertao: "sert\xE3o",
+  servico: "servi\xE7o",
+  servicos: "servi\xE7os",
+  simoes: "sim\xF5es",
+  tenis: "t\xEAnis",
+  tororo: "toror\xF3",
+  uniao: "uni\xE3o",
+  util: "\xFAtil",
+  varejao: "varej\xE3o",
+  verdurao: "verdur\xE3o",
+  vitoria: "vit\xF3ria",
+  ze: "z\xE9"
+};
+var ACCENTED_PHRASES = [
+  ["cafe da manha", "caf\xE9 da manh\xE3"],
+  ["da roca", "da ro\xE7a"],
+  ["mil paes", "mil p\xE3es"],
+  ["por do sol", "p\xF4r do sol"],
+  ["santo antonio", "santo ant\xF4nio"],
+  ["sao luis", "s\xE3o lu\xEDs"]
+];
+var SMALL_WORDS = new Set("ao aos \xE0 \xE0s de da do das dos e em na no nas nos com por para pra".split(" "));
+var KEEP_CASE_WORDS = new Set(
+  "a o as os um uma and by to of the for at on in with di del della la le du dans des et".split(" ")
+);
+var NOT_ACRONYMS = new Set("mr mrs sr sra dr dra jr st km kg ml mkt".split(" "));
+var UNITS = new Set("h hs hr hrs km kg ml l g mg".split(" "));
+var LEGAL_SUFFIX = /(?:[\s,]+|^)(?:ltda|limitada|me|epp|eireli|s\/a|s\.a\.?)\.?\s*$/i;
+var DESCRIPTORS = [
+  /[\s,-]+comercio (?:atacadista|varejista)\b.*$/,
+  /[\s,-]+(?:comercio|comercial) de (?:alimentos|generos alimenticios|produtos alimenticios|mercadorias)\b.*$/,
+  /[\s,-]+comercio e (?:industria|servicos)\b.*$/,
+  /[\s,-]+ind\.? e com\.?$/,
+  /[\s,-]+distribuidora? de alimentos e bebidas$/,
+  /[\s,-]+servicos alimenticios$/,
+  /[\s,-]+operadora de cinemas do brasil$/,
+  /[\s,-]+empreendimentos$/,
+  /[\s,-]+(?:comercio|comercial)$/
+];
+var LETTER = new RegExp("\\p{L}", "u");
+var ROMAN = /^(?:i{2,3}|iv|vi{1,3}|ix|xi{1,3}|xiv|xv)$/;
+var ASCII = /^[\x20-\x7e]*$/;
+function foldChar(char) {
+  if (char.length !== 1) return char;
+  const base = char.normalize("NFD").charAt(0).toLowerCase();
+  return base.length === 1 ? base : char;
+}
+function foldName(text) {
+  return [...text].map(foldChar).join("");
+}
+var plain = (text) => foldName(text).replace(/\s+/g, " ").trim();
+var hasVowel = (text) => /[aeiouy]/.test(foldName(text));
+function meaningful(text) {
+  const words = text.trim().split(/\s+/);
+  const last = words.at(-1)?.toLowerCase() ?? "";
+  return !SMALL_WORDS.has(last) && words.some((word) => new RegExp("\\p{L}{3,}", "u").test(word) && hasVowel(word) && !SMALL_WORDS.has(word.toLowerCase()));
+}
+function withoutLegalParts(name) {
+  let text = name.normalize("NFC").replace(/\s+/g, " ").trim().replace(/^fantasia\s*:\s*/i, "").replace(/\s*['"‘’“”]*\s*em\s+recupera[çc][ãa]o\s+judicial\s*['"‘’“”]*\s*/gi, " ").replace(/\s+-\s+filial\s+\d+\s*$/i, "").trim();
+  for (let previous = ""; previous !== text; ) {
+    previous = text;
+    text = text.replace(LEGAL_SUFFIX, "").trim();
+  }
+  const folded = foldName(text);
+  for (const descriptor of DESCRIPTORS) {
+    const match = descriptor.exec(folded);
+    if (match && meaningful(text.slice(0, match.index))) {
+      text = text.slice(0, match.index).trim();
+      break;
+    }
+  }
+  return text.replace(/(?:\s+(?:e|&|de|da|do|-))+$/i, "").trim();
+}
+function inCaseOf(source, target) {
+  const letters = [...target];
+  return [...source].map((char, index) => {
+    const fix = letters[index] ?? char;
+    return char === char.toUpperCase() && char !== char.toLowerCase() ? fix.toUpperCase() : fix;
+  }).join("");
+}
+function accented(word) {
+  if (!ASCII.test(word)) return word;
+  const right = ACCENTED_WORDS[word.toLowerCase()];
+  return right && right.length === word.length ? inCaseOf(word, right) : word;
+}
+function phraseAccents(name) {
+  const words = name.split(" ");
+  const folded = words.map(foldName);
+  for (const [phrase, right] of ACCENTED_PHRASES) {
+    const wanted = phrase.split(" ");
+    const fixes = right.split(" ");
+    for (let start = 0; start + wanted.length <= words.length; start += 1) {
+      if (!wanted.every((word, offset) => folded[start + offset] === word)) continue;
+      wanted.forEach((_, offset) => {
+        const word = words[start + offset] ?? "";
+        const fix = fixes[offset] ?? word;
+        if (ASCII.test(word) && fix.length === word.length) words[start + offset] = inCaseOf(word, fix);
+      });
+    }
+  }
+  return words.join(" ");
+}
+function titleWord(core, keepCase, last) {
+  const letters = core.replace(/[^\p{L}]/gu, "");
+  if (!letters) return core;
+  if (new RegExp("^(?:\\p{L}\\.)+\\p{L}?\\.?$", "u").test(core)) return core.toUpperCase();
+  if (new RegExp("^\\p{L}&\\p{L}$", "u").test(core)) return core.toUpperCase();
+  if (keepCase && core !== core.toLowerCase() && core.slice(1) !== core.slice(1).toLowerCase()) return core;
+  const lower = core.toLowerCase();
+  if (last && ROMAN.test(lower)) return core.toUpperCase();
+  if (letters.length >= 2 && letters.length <= 4 && !hasVowel(letters) && !NOT_ACRONYMS.has(letters.toLowerCase()))
+    return core.toUpperCase();
+  const code = new RegExp("^\\d+(\\p{L}{1,3})\\d*$", "u").exec(core)?.[1];
+  if (code) return hasVowel(code) || UNITS.has(code.toLowerCase()) ? lower : core.toUpperCase();
+  return lower.split("-").map(
+    (part) => part.replace(
+      new RegExp("^(\\p{L}')?(\\p{L})", "u"),
+      (_, elided, first) => `${elided?.toUpperCase() ?? ""}${first.toUpperCase()}`
+    )
+  ).join("-");
+}
+function titleCase(name) {
+  const keepCase = new RegExp("\\p{Ll}", "u").test(name);
+  const tokens = name.split(" ").filter(Boolean);
+  const out = [];
+  let first = true;
+  tokens.forEach((token, index) => {
+    if (!LETTER.test(token) && !/\d/.test(token)) {
+      out.push(token);
+      if (token === "-" || token.endsWith(":")) first = true;
+      return;
+    }
+    const [, lead = "", core = "", tail = ""] = /^([^\p{L}\d@+]*)(.*?)([^\p{L}\d.'&]*)$/u.exec(token) ?? [];
+    const previous = tokens[index - 1] ?? "";
+    const lower = core.toLowerCase();
+    let word;
+    if (keepCase && core.length > 1 && core === core.toUpperCase() && core !== lower) {
+      word = core;
+    } else if (new RegExp("^\\p{L}$", "u").test(core)) {
+      const initial = !["a", "o", "e"].includes(lower) || new RegExp("^\\p{L}$", "u").test(previous) || previous === "&";
+      if (first || tail.startsWith("+") || initial && !(lower === "e" && previous !== "&"))
+        word = core.toUpperCase();
+      else if (lower === "e" || !keepCase) word = lower;
+      else word = core;
+    } else if (!first && SMALL_WORDS.has(lower)) {
+      word = lower;
+    } else if (!first && KEEP_CASE_WORDS.has(lower)) {
+      word = keepCase ? core : lower;
+    } else {
+      const possessive = new RegExp("^(.*\\p{L})('s)$", "iu").exec(core);
+      const last = index === tokens.length - 1;
+      word = possessive ? `${titleWord(possessive[1] ?? "", keepCase, last)}${(possessive[2] ?? "").toLowerCase()}` : titleWord(core, keepCase, last);
+    }
+    out.push(`${lead}${word.split("-").map(accented).join("-")}${tail}`);
+    first = token.endsWith(":");
+  });
+  return out.join(" ");
+}
+var cache = /* @__PURE__ */ new Map();
+function venueDisplayName(name, venue) {
+  const override = venue ? NAME_OVERRIDES[`${venue.city}/${venue.slug}`] : void 0;
+  if (override) return override;
+  const known = cache.get(name);
+  if (known !== void 0) return known;
+  const cleaned = withoutLegalParts(name);
+  const trade = TRADE_NAMES[plain(cleaned)] ?? TRADE_NAMES[plain(name)];
+  const styled = !cleaned.includes(" ") && !new RegExp("\\p{Ll}", "u").test(cleaned);
+  const display = trade ?? ((styled ? accented(cleaned) : titleCase(phraseAccents(cleaned))) || name.trim());
+  cache.set(name, display);
+  return display;
+}
 
 // packages/domain/src/pages.ts
 var BAIRRO_MIN_VENUES = 3;
@@ -725,6 +1008,9 @@ var ROUTES = {
   happyHourDay: { "pt-BR": "/:city/happy-hour/:day", en: "/en/:city/happy-hour/:day" },
   openBar: { "pt-BR": "/:city/open-bar", en: "/en/:city/open-bar" },
   venue: { "pt-BR": "/:city/bares/:venue", en: "/en/:city/bars/:venue" },
+  // Shops have pages of their own under their lists (audit T02); their old /bares/ URLs move for good (src/worker.ts).
+  supermarket: { "pt-BR": "/:city/mercados/:venue", en: "/en/:city/supermarkets/:venue" },
+  depot: { "pt-BR": "/:city/depositos/:venue", en: "/en/:city/depots/:venue" },
   brand: { "pt-BR": "/:city/cerveja/:brand", en: "/en/:city/beer/:brand" },
   format: { "pt-BR": "/:city/formato/:format", en: "/en/:city/format/:format" },
   // Not "/en/:city/index": a last segment named index reads as a directory index (Cloudflare redirects it to "/").
@@ -791,12 +1077,14 @@ function toCityDeal(row, venues, credits) {
   const credit = credits?.get(row.id);
   const value = (key) => row[key];
   const schedules = row.schedules ? JSON.parse(row.schedules) : [];
+  const slug = value("venue_slug");
   return {
     id: row.id,
     venueId: row.venue_id,
     city: row.city,
-    venueSlug: value("venue_slug"),
-    venueName: value("venue_name"),
+    venueSlug: slug,
+    venueName: venueDisplayName(value("venue_name") ?? "", { city: row.city, slug }),
+    venueCategory: venueCategory(venue?.kind, venue?.on_site ?? 1),
     bairro: value("neighbourhood"),
     bairroName: venue?.neighbourhood_name ?? null,
     category: dealCategory(venue?.kind, venue?.on_site ?? 1, value("on_site")),
@@ -826,7 +1114,6 @@ function toCityDeal(row, venues, credits) {
     venueVerifiedAt: venue?.verified_at ?? null
   };
 }
-var SHOP_PRICE_DAYS = 14;
 function listable(deal, now, timeZone) {
   if (deal.verifiedAt === null || disputeState(deal.disputes) === "hidden") return false;
   if (deal.category !== "bar") return now - deal.verifiedAt <= SHOP_PRICE_DAYS * 86400;
@@ -876,8 +1163,21 @@ var BRAND = {
     imprensa: "imprensa@cervejabarata.com.br",
     bares: "bares@cervejabarata.com.br"
   },
-  /** The brand's own public profiles, for Organization.sameAs. */
-  profiles: ["https://www.instagram.com/cervejabaratacombr/"],
+  /**
+   * The brand's own public profiles, for Organization.sameAs: only ones that exist, each run by the brand (the GitHub
+   * organisation holds the public scrapers; its members stay private).
+   */
+  profiles: [
+    "https://www.instagram.com/cervejabaratacombr/",
+    "https://github.com/cb-data-org"
+  ],
+  /**
+   * The logo: the stitched patch with the name, a 512 px PNG (public/logo.png, drawn by scripts/brand-icons.py) for
+   * Organization.logo and the brand's profile pictures. Keep the URL: search engines and profiles keep a copy.
+   */
+  logo: { path: "/logo.png", width: 512, height: 512 },
+  /** The year the brand started (Organization.foundingDate). */
+  founded: "2026",
   tagline: { "pt-BR": "o mapa da cerveja barata", en: "the cheap beer map" },
   headline: { "pt-BR": "A cerveja mais barata perto de voc\xEA", en: "The cheapest beer near you" }
 };
@@ -966,7 +1266,7 @@ function weekOf(at, timeZone) {
   local.setUTCDate(local.getUTCDate() - (local.getUTCDay() + 6) % 7);
   return new Intl.DateTimeFormat("pt-BR", { day: "numeric", month: "long", timeZone: "UTC" }).format(local);
 }
-var plain = (text) => text.replace(/ /g, " ");
+var plain2 = (text) => text.replace(/ /g, " ");
 function entryOf(deal, rank) {
   const timed = deal.kind === "happy_hour" || deal.kind === "promo";
   return {
@@ -1044,7 +1344,7 @@ function caption(post) {
     "#boteco",
     "#bahia"
   ];
-  return plain(
+  return plain2(
     [
       `${post.headline} nesta semana sai a ${first.perLitre.replace("/L", " o litro")}. Veja onde.`,
       [
