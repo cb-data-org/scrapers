@@ -1,0 +1,93 @@
+{
+  "data": {
+    "viewer": {
+      "accounts": [
+        {
+          "total": [
+            {
+              "count": 5200,
+              "sum": {
+                "visits": 2410
+              }
+            }
+          ],
+          "referrers": [
+            {
+              "count": 2100,
+              "dimensions": {
+                "refererHost": ""
+              },
+              "sum": {
+                "visits": 1300
+              }
+            },
+            {
+              "count": 900,
+              "dimensions": {
+                "refererHost": "www.google.com"
+              },
+              "sum": {
+                "visits": 610
+              }
+            },
+            {
+              "count": 1900,
+              "dimensions": {
+                "refererHost": "cervejabarata.com.br"
+              },
+              "sum": {
+                "visits": 0
+              }
+            },
+            {
+              "count": 60,
+              "dimensions": {
+                "refererHost": "l.instagram.com"
+              },
+              "sum": {
+                "visits": 25
+              }
+            },
+            {
+              "count": 40,
+              "dimensions": {
+                "refererHost": "chatgpt.com"
+              },
+              "sum": {
+                "visits": 18
+              }
+            },
+            {
+              "count": 20,
+              "dimensions": {
+                "refererHost": "www.bing.com"
+              },
+              "sum": {
+                "visits": 12
+              }
+            },
+            {
+              "count": 6,
+              "dimensions": {
+                "refererHost": "www.perplexity.ai"
+              },
+              "sum": {
+                "visits": 3
+              }
+            },
+            {
+              "count": 2,
+              "dimensions": {
+                "refererHost": "claude.ai"
+              },
+              "sum": {
+                "visits": 1
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "errors": null
+}

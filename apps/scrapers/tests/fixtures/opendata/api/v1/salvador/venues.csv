@@ -1,0 +1,3 @@
+﻿id,slug,name,kind,on_site,lat,lng,address,neighbourhood,neighbourhood_name,instagram,opening_hours,attributes,osm_ref,cheapest_price_per_litre_brl,deal_count,url
+68,quintal,Quintal,bar,true,-12.986728,-38.52122,"Avenida Sete de Setembro, 1370",centro,Centro,,,,node/2580132582,33.33,2,https://cervejabarata.com.br/salvador/bares/quintal
+171,alem-do-cais,Além do Cais,restaurante,true,-12.965396,-38.505052,,santo-antonio,Santo Antônio,,,,node/4392854392,21.67,3,https://cervejabarata.com.br/salvador/bares/alem-do-cais

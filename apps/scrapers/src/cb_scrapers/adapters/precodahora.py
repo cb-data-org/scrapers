@@ -6,15 +6,16 @@ POST to /produtos/ with a term, a place (latitude, longitude and a radius in km)
 sales, a page and an order, and answers JSON: 25 sales a page, each with the product (description, NCM, unit
 price, date) and the shop (name, CNPJ, address, coordinates).
 
-Once a day the adapter:
-1. Reads the bars, pubs and restaurants OpenStreetMap has around the searched places (one Overpass query), to
-   recognise shops that are already on the map.
+A run starts at most once an hour (RUN_EVERY), and none for six hours after the site refused us
+(BLOCK_PAUSE): `cb run` holds every run to that pace (core/pace.py). Each run the adapter:
+1. Reads the bars, pubs and restaurants OpenStreetMap has around the searched places (one Overpass query, once
+   a day), to recognise shops that are already on the map.
 2. Searches each beer brand (and "chopp") around each place, every page, more gently than the polite client
    alone: one search at a time, SEARCH_DELAY seconds apart, at most MAX_SEARCHES a run, and a stop at the
    first sign that the site doesn't want us (403/429, a CAPTCHA switched on, a page without its CSRF token,
-   an answer that isn't the expected JSON). It never works around any of these. The searches wait in a queue
-   that each run resumes; chopp around the MVP jumps it about every other day, as the site only keeps 72
-   hours of sales.
+   any other error answer, an answer that isn't the expected JSON, a robots.txt that shuts us out). It never
+   works around any of these. The searches wait in a queue that each run resumes; chopp around the MVP jumps
+   it about every other day, as the site only keeps 72 hours of sales.
 3. Keeps beer (NCM 2203) sold by the unit whose description reads as a catalog serving (core/products.py).
 4. Keeps only places to sit and drink, conservatively (venues.py, #330): the main activity (CNAE, from the
    CNPJ register) must be a bar, a restaurant or a brewery's taproom, and the evidence must not say "shop":
@@ -51,8 +52,10 @@ from ..core import (
     DAILY,
     Adapter,
     BlockedError,
+    DisallowedError,
     Fetched,
     Item,
+    Pace,
     PoliteClient,
     Task,
     normalize,
@@ -90,6 +93,12 @@ SEARCH_URL = f"{BASE}/produtos/"
 SEARCH_DELAY = 20.0
 #: Searches a run, under the 33rd search that the site once refused.
 MAX_SEARCHES = 30
+#: A run starts at least this long after the last one started (owner, 15 Oct 2026, #701: the pace the letter
+#: to SEFAZ-BA states): 30 searches an hour, 720 a day at most. The workflow tries three times an hour, as
+#: GitHub drops scheduled runs; `cb run` lets through the first try an hour after the last start.
+RUN_EVERY = timedelta(hours=1)
+#: No run for this long after a refusal (403/429, a CAPTCHA, an error or unexpected answer, robots.txt).
+BLOCK_PAUSE = timedelta(hours=6)
 #: The site returns at most 4 pages (100 sales) per search, whatever the radius (the rest only shows from the
 #: other end: cheapest first). It ignores any page-size parameter (probed 11 Oct 2026).
 MAX_PAGES = 4
@@ -582,6 +591,7 @@ def display_name(company: Company, receipt_name: str) -> str | None:
 class PrecoDaHora(Adapter):
     name = "precodahora"
     cadence = DAILY
+    pace = Pace(RUN_EVERY, BLOCK_PAUSE)
     delay = SEARCH_DELAY
 
     def __init__(
@@ -873,17 +883,25 @@ class PrecoDaHora(Adapter):
                 # Overpass refusing us is no reason to report Preço da Hora as blocking: a plain failure.
                 raise RuntimeError(str(error)) from error
         self.searches += 1
-        if self.csrf is None:
-            self.csrf = self.open_session()
         try:
-            response = self.post(task)
+            if self.csrf is None:
+                self.csrf = self.open_session()
+            try:
+                response = self.post(task)
+            except httpx.HTTPStatusError as error:
+                if error.response.status_code != 400 or self.refreshed:
+                    raise
+                # An expired session: one fresh page and one more try, once a run.
+                self.refreshed = True
+                self.csrf = self.open_session()
+                response = self.post(task)
+        except DisallowedError as error:
+            # robots.txt shuts us out, or answered 401/403/429, an error or nothing: a refusal like any other.
+            raise BlockedError(str(error) or SEARCH_URL, "robots.txt doesn't let us in") from error
         except httpx.HTTPStatusError as error:
-            if error.response.status_code != 400 or self.refreshed:
-                raise
-            # An expired session: one fresh page and one more try, once a run.
-            self.refreshed = True
-            self.csrf = self.open_session()
-            response = self.post(task)
+            # Any other error answer (a 4xx past the one renewal, a 5xx past the client's retries) is
+            # unexpected too: the run ends and the site rests, instead of more searches while it struggles.
+            raise BlockedError(str(error.request.url), f"HTTP {error.response.status_code}") from error
         content_type = response.headers.get("content-type", "")
         if "json" not in content_type:
             got = f"{content_type or 'nothing'} ({len(response.content)} B)"

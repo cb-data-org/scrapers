@@ -20,7 +20,7 @@ from cb_scrapers.adapters.precodahora import (
     tidy_name,
 )
 from cb_scrapers.cnpj import MINHA_RECEITA, CnpjRegister, Company
-from cb_scrapers.core import BlockedError, Fetched, PoliteClient, Task
+from cb_scrapers.core import BlockedError, Fetched, Pace, PoliteClient, Task
 from cb_scrapers.core.catalog import committed_catalog
 from cb_scrapers.models import IngestRequest
 from cb_scrapers.venues import ReviewRow
@@ -783,6 +783,9 @@ def test_no_searches_without_openstreetmap(polite: Callable[..., PoliteClient]) 
         ("<html>maintenance</html>", None, "no CSRF token"),
         (PAGE, httpx.Response(200, text="<html>login</html>"), "expected JSON"),
         (PAGE, httpx.Response(429), "HTTP 429"),
+        # Any other error answer ends the run too (and the site rests: BLOCK_PAUSE).
+        (PAGE, httpx.Response(500), "HTTP 500"),
+        (PAGE, httpx.Response(404), "HTTP 404"),
     ],
 )
 def test_stops_at_the_first_refusal(
@@ -795,13 +798,46 @@ def test_stops_at_the_first_refusal(
         adapter.fetch(Task("chopp @ pituba p1", SEARCH_URL, {"termo": "chopp", "pagina": 1}))
 
 
+@pytest.mark.parametrize(
+    "robots", [403, 429, 500, "User-agent: CervejaBarataBot\nDisallow: /produtos/"], ids=str
+)
+def test_a_robots_txt_that_shuts_us_out_is_a_refusal_too(
+    polite: Callable[..., PoliteClient], robots: int | str
+) -> None:
+    fake = site()
+    fake.routes[f"{precodahora.BASE}/robots.txt"] = robots
+    adapter = PrecoDaHora(polite(fake), cnpjs=CnpjRegister(polite(FakeSite({})), None))
+    with pytest.raises(BlockedError, match=re.escape("robots.txt doesn't let us in")):
+        adapter.fetch(Task("chopp @ pituba p1", SEARCH_URL, {"termo": "chopp", "pagina": 1}))
+    assert fake.paths() == ["/robots.txt"]
+
+
+def test_a_search_page_that_answers_an_error_ends_the_run_after_the_clients_retries(
+    polite: Callable[..., PoliteClient],
+) -> None:
+    fake = site()
+    fake.routes[SEARCH_URL] = 503
+    adapter = PrecoDaHora(polite(fake), cnpjs=CnpjRegister(polite(FakeSite({})), None))
+    with pytest.raises(BlockedError, match="HTTP 503"):
+        adapter.fetch(Task("chopp @ pituba p1", SEARCH_URL, {"termo": "chopp", "pagina": 1}))
+    assert [r.method for r in fake.requests if r.url.path == "/produtos/"] == ["GET", "GET", "GET"]
+
+
+def test_one_run_an_hour_at_most_and_six_hours_of_rest_after_a_refusal() -> None:
+    # The pace the letter to SEFAZ-BA states (#701); `cb run` holds every run to it (test_cli, test_pace).
+    assert PrecoDaHora.pace == Pace(timedelta(hours=1), timedelta(hours=6))
+    assert precodahora.MAX_SEARCHES * (timedelta(days=1) // PrecoDaHora.pace.every) == 720
+    assert PrecoDaHora.delay == precodahora.SEARCH_DELAY == 20
+
+
 def test_renews_an_expired_session_once(polite: Callable[..., PoliteClient]) -> None:
     answers = iter([httpx.Response(400), httpx.Response(200, json={"resultado": []}), httpx.Response(400)])
     fake = site(answer=lambda request: next(answers))
     adapter = PrecoDaHora(polite(fake), cnpjs=CnpjRegister(polite(FakeSite({})), None))
     task = Task("chopp @ pituba p1", SEARCH_URL, {"termo": "chopp", "pagina": 1})
     assert adapter.fetch(task).json() == {"resultado": []}
-    with pytest.raises(httpx.HTTPStatusError):
+    # A second expired session in one run is no longer expected: the run ends there.
+    with pytest.raises(BlockedError, match="HTTP 400"):
         adapter.fetch(task)
     assert [r.method for r in fake.requests if r.url.path == "/produtos/"] == [
         "GET",

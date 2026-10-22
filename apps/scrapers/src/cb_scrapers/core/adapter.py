@@ -33,6 +33,17 @@ MONTHLY = Cadence(timedelta(days=28), timedelta(days=1), "monthly")
 
 
 @dataclass(frozen=True, slots=True)
+class Pace:
+    """A limit a source was promised, unlike a Cadence (what is worth running, from the API's good runs): a
+    run starts at least `every` after the last one started, whatever came of it, and none starts within
+    `after_block` of a block (a 403/429, a CAPTCHA, an unexpected answer). `cb run` keeps both times in the
+    cache folder (core/pace.py) and holds every run of the source to them: scheduled, by hand or a dry run."""
+
+    every: timedelta
+    after_block: timedelta
+
+
+@dataclass(frozen=True, slots=True)
 class Task:
     """One unit of fetching, such as one menu or one search. `key` names it in logs and errors."""
 
@@ -99,6 +110,8 @@ class Adapter(ABC):
 
     name: ClassVar[str]
     cadence: ClassVar[Cadence]
+    #: How often the source may be read at most, and the rest after a block (None: only the cadence).
+    pace: ClassVar[Pace | None] = None
     #: Minimum seconds between two requests to the same host; a larger robots.txt Crawl-delay wins.
     delay: ClassVar[float] = 3.0
     #: Brands, beers, formats and bounds to match against; the runner sets it before the first task.

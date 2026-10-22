@@ -1,0 +1,50 @@
+{
+  "servers": [
+    {
+      "id": "36327f00-b40f-41fb-8fa3-f99fa2d78847",
+      "qualifiedName": "listentosadhu/corpus",
+      "namespace": "listentosadhu",
+      "slug": "corpus",
+      "displayName": "Listen to Sadhu",
+      "description": "Listen to Sadhu exposes a searchable corpus of Vedic scripture and recorded lect",
+      "iconUrl": "https://api.smithery.ai/servers/listentosadhu/corpus/icon",
+      "verified": false,
+      "useCount": 8356,
+      "remote": true,
+      "isDeployed": true,
+      "unlisted": false,
+      "inactive": false,
+      "createdAt": "2026-07-04T16:52:01.305Z",
+      "homepage": "https://mcp.listentosadhu.app",
+      "bySmithery": false,
+      "owner": "org_01KWQ0MV825AD0QMCEBA6FBNA6",
+      "score": 0.03225806451612903
+    },
+    {
+      "id": "27d7d6d0-0906-4cfa-af8a-51a845908277",
+      "qualifiedName": "urantiahub/urantia-papers",
+      "namespace": "urantiahub",
+      "slug": "urantia-papers",
+      "displayName": "Urantia Papers",
+      "description": "A free, open MCP server for **The Urantia Papers** — 197 papers, 1,626 sections,",
+      "iconUrl": "https://api.smithery.ai/servers/urantiahub/urantia-papers/icon",
+      "verified": false,
+      "useCount": 2382,
+      "remote": true,
+      "isDeployed": true,
+      "unlisted": false,
+      "inactive": false,
+      "createdAt": "2026-05-02T22:39:43.102Z",
+      "homepage": "https://www.urantia.dev",
+      "bySmithery": false,
+      "owner": "org_01KQNAKT3GCP66XX7ES5957ZQT",
+      "score": 0.027777777777777776
+    }
+  ],
+  "pagination": {
+    "currentPage": 1,
+    "pageSize": 10,
+    "totalPages": 10,
+    "totalCount": 100
+  }
+}

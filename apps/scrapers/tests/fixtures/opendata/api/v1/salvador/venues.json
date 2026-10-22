@@ -1,0 +1,46 @@
+{
+  "updated_at": "2026-10-15T03:01:42.538Z",
+  "license": "ODbL-1.0",
+  "attribution": "Cerveja Barata (cervejabarata.com.br); receipt prices: Preço da Hora Bahia, Bahia State Treasury (SEFAZ-BA); venues © OpenStreetMap contributors and Overture Maps Foundation",
+  "city": "salvador",
+  "items": [
+    {
+      "id": 68,
+      "slug": "quintal",
+      "name": "Quintal",
+      "kind": "bar",
+      "on_site": true,
+      "lat": -12.986728,
+      "lng": -38.52122,
+      "address": "Avenida Sete de Setembro, 1370",
+      "instagram": null,
+      "opening_hours": null,
+      "attributes": [],
+      "osm_ref": "node/2580132582",
+      "neighbourhood": "centro",
+      "neighbourhood_name": "Centro",
+      "cheapest_ppn_minor": 3333,
+      "deal_count": 2,
+      "verified_at": null
+    },
+    {
+      "id": 171,
+      "slug": "alem-do-cais",
+      "name": "Além do Cais",
+      "kind": "restaurante",
+      "on_site": true,
+      "lat": -12.965396,
+      "lng": -38.505052,
+      "address": null,
+      "instagram": null,
+      "opening_hours": null,
+      "attributes": [],
+      "osm_ref": "node/4392854392",
+      "neighbourhood": "santo-antonio",
+      "neighbourhood_name": "Santo Antônio",
+      "cheapest_ppn_minor": 2167,
+      "deal_count": 3,
+      "verified_at": null
+    }
+  ]
+}

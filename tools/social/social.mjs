@@ -1,7 +1,7 @@
 // Generated from tools/scripts/src/social.ts (cervejabarata.com.br): don't edit.
 
 // tools/scripts/src/social.ts
-import { mkdirSync, readFileSync as readFileSync2, writeFileSync } from "node:fs";
+import { mkdirSync as mkdirSync2, readFileSync as readFileSync3, writeFileSync as writeFileSync2 } from "node:fs";
 import { createRequire } from "node:module";
 import { join as join2 } from "node:path";
 import { parseArgs } from "node:util";
@@ -19,6 +19,8 @@ function readPtax(value) {
 }
 
 // apps/site/src/data/snapshot.ts
+var LICENSE = "ODbL-1.0";
+var ATTRIBUTION = "Cerveja Barata (cervejabarata.com.br); receipt prices: Pre\xE7o da Hora Bahia, Bahia State Treasury (SEFAZ-BA); venues \xA9 OpenStreetMap contributors and Overture Maps Foundation";
 function readSnapshot(dir) {
   const read = (name) => {
     const path2 = join(dir, `${name}.json`);
@@ -41,7 +43,9 @@ function readSnapshot(dir) {
     // Newer than some saved snapshots (the end-to-end fixture): none there.
     credits: existsSync(join(dir, "v_public_credits.json")) ? read("v_public_credits") : [],
     // The dollar rate, when the snapshot fetched one (remote builds): English pages show US$ with it.
-    ptax: existsSync(join(dir, "ptax.json")) ? readPtax(read("ptax")) : null
+    ptax: existsSync(join(dir, "ptax.json")) ? readPtax(read("ptax")) : null,
+    // The Friday Top 10s the live site has published (remote builds read them back): this build adds to them.
+    sextou: existsSync(join(dir, "sextou.json")) ? read("sextou") : null
   };
 }
 function withAlcoholFlag(deals, beers) {
@@ -50,6 +54,10 @@ function withAlcoholFlag(deals, beers) {
     (row) => row.non_alcoholic === void 0 || row.non_alcoholic === null ? { ...row, non_alcoholic: free.has(row.beer) ? 1 : 0 } : row
   );
 }
+
+// tools/scripts/src/social/archive.ts
+import { existsSync as existsSync2, mkdirSync, readFileSync as readFileSync2, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
 
 // packages/domain/src/formats.ts
 var format = (type, volumeMl, pt, en) => ({
@@ -129,6 +137,7 @@ var DAY_NAMES = {
   en: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 };
 var EVERY_DAY = { "pt-BR": "todos os dias", en: "every day" };
+var ALL_DAY = { "pt-BR": "24 horas", en: "24 hours" };
 function clock(minute, locale) {
   const hours = String(Math.floor(minute % DAY / 60)).padStart(2, "0");
   const minutes = String(minute % 60).padStart(2, "0");
@@ -140,7 +149,7 @@ function describeWindows(windows, locale = "pt-BR") {
   const names = DAY_NAMES[locale];
   const daysByHours = /* @__PURE__ */ new Map();
   for (const window of [...windows].sort((a, b) => weekPosition(a.dow) - weekPosition(b.dow))) {
-    const hours = `${clock(window.startMin, locale)}\u2013${clock(window.endMin, locale)}`;
+    const hours = window.startMin === 0 && window.endMin === DAY ? ALL_DAY[locale] : `${clock(window.startMin, locale)}\u2013${clock(window.endMin, locale)}`;
     const days = daysByHours.get(hours) ?? [];
     if (!days.includes(window.dow)) days.push(window.dow);
     daysByHours.set(hours, days);
@@ -204,6 +213,11 @@ function localDayNumber(unixSeconds, timeZone) {
   const { year, month, day } = localDateParts(unixSeconds, timeZone);
   return Date.UTC(year, month - 1, day) / 864e5;
 }
+function localDate(unixSeconds, timeZone) {
+  const { year, month, day } = localDateParts(unixSeconds, timeZone);
+  const pad = (value) => String(value).padStart(2, "0");
+  return `${year}-${pad(month)}-${pad(day)}`;
+}
 function ageInDays(verifiedAt, now, timeZone) {
   return Math.max(0, localDayNumber(now, timeZone) - localDayNumber(verifiedAt, timeZone));
 }
@@ -223,6 +237,7 @@ function inRankings(freshness) {
 // packages/domain/src/lead-messages.ts
 var LEAD_BADGE = "o bar ganha de gra\xE7a o selo azul de verificado, como no Instagram.";
 var LEAD_OPT_OUT_LINE = "Se n\xE3o quiserem receber mensagens, \xE9 s\xF3 avisar.";
+var LEAD_CORRECTION_LINE = "Se algum pre\xE7o estiver errado, respondam aqui: a gente corrige ou tira o bar do site em at\xE9 24 horas.";
 var LEAD_POSTS_PROBE = "Tamb\xE9m est\xE1 em teste uma ajuda com os posts do Instagram do bar. Se interessar, contem para a gente.";
 var LEAD_TEMPLATES = {
   message1: `Oi, {bar}! Aqui \xE9 o Cerveja Barata (cervejabarata.com.br), que compara o pre\xE7o da cerveja nos bares de {city}. {prices_sentence}
@@ -231,6 +246,8 @@ Respondam RAIO-X e a gente manda, s\xF3 para voc\xEAs, {raiox_offer}.
 
 Para p\xF4r todas as cervejas no site, mandem uma foto do card\xE1pio (n\xE3o pede senha nem pagamento): {menu_link}
 A IA l\xEA os pre\xE7os, voc\xEAs s\xF3 conferem, e ${LEAD_BADGE}
+
+${LEAD_CORRECTION_LINE}
 
 ` + LEAD_OPT_OUT_LINE,
   followup: "Oi, {bar}! Voltando ao Raio-X: respondam RAIO-X e a gente manda, s\xF3 para voc\xEAs, {raiox_offer}.\n\nO link da foto do card\xE1pio continua o mesmo (n\xE3o pede senha nem pagamento): {menu_link}\nUm detalhe: o selo de verificado vale por seis meses, se renova a cada card\xE1pio novo e n\xE3o mexe no ranking.\n\n" + LEAD_OPT_OUT_LINE,
@@ -571,6 +588,14 @@ function venueDisplayName(name, venue) {
   return display;
 }
 
+// packages/domain/src/opening-hours.ts
+var DAY2 = "(?:Mo|Tu|We|Th|Fr|Sa|Su)";
+var DAY_RANGE = `${DAY2}(?:-${DAY2})?`;
+var TIME = "(?:(?:[01]\\d|2[0-3]):[0-5]\\d|24:00)";
+var SPAN = `${TIME}-${TIME}`;
+var list = (item) => `${item}(?:\\s*,\\s*${item})*`;
+var RULE = new RegExp(`^(?:(${list(DAY_RANGE)})\\s+)?(${list(SPAN)}|off|closed)$`);
+
 // packages/domain/src/pages.ts
 var BAIRRO_MIN_VENUES = 3;
 
@@ -622,6 +647,39 @@ var GENERIC_WORDS = new Set(
     " "
   )
 );
+
+// apps/site/src/brand.ts
+var BRAND = {
+  name: "Cerveja Barata",
+  domain: "cervejabarata.com.br",
+  /** Brand addresses only (Cloudflare Email Routing to a private inbox); never a personal one. */
+  email: {
+    contato: "contato@cervejabarata.com.br",
+    privacidade: "privacidade@cervejabarata.com.br",
+    imprensa: "imprensa@cervejabarata.com.br",
+    bares: "bares@cervejabarata.com.br"
+  },
+  /**
+   * The brand's own public profiles, for Organization.sameAs: only ones that exist, each run by the brand (the GitHub
+   * organisation holds the public scrapers; its members stay private).
+   */
+  profiles: [
+    "https://www.instagram.com/cervejabaratacombr/",
+    "https://github.com/cb-data-org"
+  ],
+  /**
+   * The logo: the stitched patch with the name, a 512 px PNG (public/logo.png, drawn by scripts/brand-icons.py) for
+   * Organization.logo and the brand's profile pictures. Keep the URL: search engines and profiles keep a copy.
+   */
+  logo: { path: "/logo.png", width: 512, height: 512 },
+  /** The year the brand started (Organization.foundingDate). */
+  founded: "2026",
+  tagline: { "pt-BR": "o mapa da cerveja barata", en: "the cheap beer map" },
+  headline: { "pt-BR": "A cerveja mais barata perto de voc\xEA", en: "The cheapest beer near you" }
+};
+
+// apps/site/src/seo/titles.ts
+var SUFFIX = ` \xB7 ${BRAND.name}`;
 
 // apps/site/src/city/dates.ts
 var count = (n, locale) => new Intl.NumberFormat(locale === "en" ? "en-GB" : "pt-BR").format(n);
@@ -722,6 +780,8 @@ var ARTICLES = {
   "chame chame": "no",
   "nordeste de amaralina": "no",
   "dique do tororo": "no",
+  // "no Dois de Julho", as Correio and A Tarde write it.
+  "dois de julho": "no",
   "santo antonio alem do carmo": "no",
   "pelourinho e centro historico": "no",
   barris: "nos",
@@ -731,6 +791,7 @@ var placeKey = (name) => name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").t
 function inPlace(name) {
   return `${ARTICLES[placeKey(name)] ?? "em"} ${name}`;
 }
+var capitalFirst = (text) => `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
 var DISPLAY_NAMES = {
   "salvador:santo-antonio": "Santo Ant\xF4nio Al\xE9m do Carmo",
   "salvador:centro-historico": "Pelourinho e Centro Hist\xF3rico"
@@ -791,7 +852,14 @@ var COPY = {
     bairro: "Bairro",
     mapArea: "\xC1rea do mapa",
     shopSource: "Fonte: nota fiscal no Pre\xE7o da Hora Bahia (SEFAZ-BA)",
-    removeShop: "Sua loja? Tirar da lista",
+    removeShop: "Sua loja? Tirar do site",
+    /**
+     * A bar page's link to the Para bares form with the bar's slug (ownerFormPath), in its one owner line: on its own
+     * on a verified bar's page (`fixBar`, framed for the owner), after "É dono deste bar?" and the menu pitch on the
+     * others (`fixBarAfterPitch`, which asks nothing again).
+     */
+    fixBar: "\xC9 seu bar? Corrigir ou tirar do site",
+    fixBarAfterPitch: "Corrigir dados ou tirar o bar do site",
     local: {
       question: "Onde voc\xEA est\xE1?",
       nearButton: "\u25CE Perto de mim",
@@ -917,7 +985,9 @@ var COPY = {
     bairro: "Neighbourhood",
     mapArea: "Map area",
     shopSource: "Source: electronic receipt, via Bahia's Pre\xE7o da Hora (SEFAZ-BA)",
-    removeShop: "Your shop? Take it off the list",
+    removeShop: "Your shop? Take it off the site",
+    fixBar: "Your bar? Correct it or take it off the site",
+    fixBarAfterPitch: "Correct the details or take the bar off the site",
     local: {
       question: "Where are you?",
       nearButton: "\u25CE Near me",
@@ -1016,8 +1086,14 @@ var ROUTES = {
   // Not "/en/:city/index": a last segment named index reads as a directory index (Cloudflare redirects it to "/").
   priceIndex: { "pt-BR": "/:city/indice", en: "/en/:city/price-index" },
   priceIndexMonth: { "pt-BR": "/:city/indice/:month", en: "/en/:city/price-index/:month" },
+  // The next edition as this build's prices would make it, for checking before the 1st: internal, never indexed.
+  priceIndexPreview: { "pt-BR": "/:city/indice/previa" },
   newYearsEve: { "pt-BR": "/:city/reveillon", en: "/en/:city/new-years-eve" },
   carnival: { "pt-BR": "/:city/carnaval", en: "/en/:city/carnival" },
+  // The Friday Top 10, frozen with its date, and the archive of each week's cheapest (src/city/sextou.ts).
+  sextou: { "pt-BR": "/:city/sextou", en: "/en/:city/friday-top-10" },
+  // National, no city: the price-per-litre calculator (src/city/price-per-litre.ts).
+  pricePerLitre: { "pt-BR": "/preco-por-litro", en: "/en/price-per-litre" },
   data: { "pt-BR": "/dados", en: "/en/data" },
   developers: { "pt-BR": "/desenvolvedores", en: "/en/developers" },
   press: { "pt-BR": "/imprensa", en: "/en/press" },
@@ -1033,7 +1109,21 @@ var ROUTES = {
   privacy: { "pt-BR": "/privacidade", en: "/en/privacy" },
   terms: { "pt-BR": "/termos", en: "/en/terms" },
   bot: { "pt-BR": "/bot", en: "/en/bot" },
-  styleGuide: { "pt-BR": "/estilo" }
+  styleGuide: { "pt-BR": "/estilo" },
+  // Tables for other sites to embed (the press kit, src/press/kit.ts): "/embed" and the address of the page they
+  // come from, never indexed (their canonical URL is that page), and the only pages any site may frame
+  // (embedRules in scripts/header-rules.mjs).
+  embedSizes: { "pt-BR": "/embed/:city/preco-da-cerveja/formatos", en: "/en/embed/:city/beer-prices/sizes" },
+  embedPremiums: {
+    "pt-BR": "/embed/:city/preco-da-cerveja/bar-ou-mercado",
+    en: "/en/embed/:city/beer-prices/bar-or-supermarket"
+  },
+  embedBairros: {
+    "pt-BR": "/embed/:city/preco-da-cerveja/bairros",
+    en: "/en/embed/:city/beer-prices/neighbourhoods"
+  },
+  embedNeighbourhood: { "pt-BR": "/embed/:city/:bairro", en: "/en/embed/:city/:bairro" },
+  embedIndexMonth: { "pt-BR": "/embed/:city/indice/:month", en: "/en/embed/:city/price-index/:month" }
 };
 var DAY_SLUGS = {
   "pt-BR": ["domingo", "segunda", "terca", "quarta", "quinta", "sexta", "sabado"],
@@ -1152,39 +1242,6 @@ function beerLabel(deal, locale) {
 var money = (minor) => formatMoney(minor, market);
 var perLitre2 = (minor) => formatPpn(minor, market);
 
-// apps/site/src/brand.ts
-var BRAND = {
-  name: "Cerveja Barata",
-  domain: "cervejabarata.com.br",
-  /** Brand addresses only (Cloudflare Email Routing to a private inbox); never a personal one. */
-  email: {
-    contato: "contato@cervejabarata.com.br",
-    privacidade: "privacidade@cervejabarata.com.br",
-    imprensa: "imprensa@cervejabarata.com.br",
-    bares: "bares@cervejabarata.com.br"
-  },
-  /**
-   * The brand's own public profiles, for Organization.sameAs: only ones that exist, each run by the brand (the GitHub
-   * organisation holds the public scrapers; its members stay private).
-   */
-  profiles: [
-    "https://www.instagram.com/cervejabaratacombr/",
-    "https://github.com/cb-data-org"
-  ],
-  /**
-   * The logo: the stitched patch with the name, a 512 px PNG (public/logo.png, drawn by scripts/brand-icons.py) for
-   * Organization.logo and the brand's profile pictures. Keep the URL: search engines and profiles keep a copy.
-   */
-  logo: { path: "/logo.png", width: 512, height: 512 },
-  /** The year the brand started (Organization.foundingDate). */
-  founded: "2026",
-  tagline: { "pt-BR": "o mapa da cerveja barata", en: "the cheap beer map" },
-  headline: { "pt-BR": "A cerveja mais barata perto de voc\xEA", en: "The cheapest beer near you" }
-};
-
-// apps/site/src/seo/titles.ts
-var SUFFIX = ` \xB7 ${BRAND.name}`;
-
 // apps/site/src/city/venues.ts
 var generatedAtOf = (data) => Math.floor(Date.parse(data.manifest.generated_at) / 1e3);
 
@@ -1226,6 +1283,156 @@ function bairroPages(rankings) {
   });
 }
 var venuesIn = (deals) => new Set(deals.map((deal) => deal.venueId)).size;
+
+// apps/site/src/city/sextou.ts
+var SEXTOU_TOP = 10;
+var SEXTOU_MIN_BARS = 10;
+var SEXTOU_FRESH_DAYS = 14;
+var SEXTOU_NAMED_DAYS = 30;
+var FRIDAY = 5;
+var DAY3 = 86400;
+var dayOfWeek = (iso) => (/* @__PURE__ */ new Date(`${iso}T12:00:00Z`)).getUTCDay();
+var isFriday = (day) => dayOfWeek(day) === FRIDAY;
+function freshBars(ranked, now) {
+  return new Set(
+    ranked.filter((deal) => deal.verifiedAt !== null && now - deal.verifiedAt <= SEXTOU_FRESH_DAYS * DAY3).map((deal) => deal.venueId)
+  ).size;
+}
+function rowOf(deal, rank) {
+  return {
+    rank,
+    id: deal.id,
+    venueId: deal.venueId,
+    venueSlug: deal.venueSlug,
+    venueName: deal.venueName,
+    venueCategory: deal.venueCategory,
+    bairro: deal.bairro,
+    bairroName: deal.bairroName,
+    beerName: deal.beerName,
+    brand: deal.brand,
+    brandName: deal.brandName,
+    formatCode: deal.formatCode,
+    formatType: deal.formatType,
+    volumeMl: deal.volumeMl,
+    units: deal.units,
+    packaging: deal.packaging,
+    priceMinor: deal.priceMinor,
+    ppnMinor: deal.ppnMinor,
+    kind: deal.kind,
+    windows: deal.windows,
+    verifiedAt: deal.verifiedAt
+  };
+}
+function dealOf(row, city) {
+  return {
+    id: row.id,
+    credit: null,
+    venueId: row.venueId,
+    city,
+    venueSlug: row.venueSlug,
+    venueName: row.venueName,
+    venueCategory: row.venueCategory,
+    bairro: row.bairro,
+    bairroName: row.bairroName,
+    lat: 0,
+    lng: 0,
+    beerName: row.beerName,
+    nonAlcoholic: false,
+    brand: row.brand,
+    brandName: row.brandName,
+    formatCode: row.formatCode,
+    formatType: row.formatType,
+    volumeMl: row.volumeMl,
+    units: row.units,
+    packaging: row.packaging,
+    priceMinor: row.priceMinor,
+    ppnMinor: row.ppnMinor,
+    kind: row.kind,
+    openBarMinutes: null,
+    conditions: null,
+    servicePct: null,
+    couvertMinor: null,
+    windows: row.windows,
+    verifiedAt: row.verifiedAt,
+    confirmations: 0,
+    disputes: 0,
+    category: "bar",
+    venueVerifiedAt: null
+  };
+}
+function freezeWeek(ranking2, day) {
+  if (!isFriday(day)) return null;
+  const bars = freshBars(ranking2.ranked, ranking2.generatedAt);
+  if (bars < SEXTOU_MIN_BARS) return null;
+  return {
+    friday: day,
+    frozenAt: ranking2.generatedAt,
+    bars,
+    prices: ranking2.ranked.length,
+    top: onePerBar(ranking2.ranked).slice(0, SEXTOU_TOP).map((deal, index) => rowOf(deal, index + 1))
+  };
+}
+function addWeek(weeks, week) {
+  const known = week && weeks.some((each) => each.friday === week.friday);
+  return [...weeks, ...week && !known ? [week] : []].sort((a, b) => b.friday.localeCompare(a.friday));
+}
+var liveBars = (venues) => new Set(
+  venues.filter((venue) => venueCategory(venue.kind, venue.on_site) === "bar").map((venue) => venue.id)
+);
+var namesBar = (row, frozenAt, live) => live.has(row.venueId) && row.verifiedAt !== null && frozenAt - row.verifiedAt <= SEXTOU_NAMED_DAYS * DAY3;
+function anonymousBar(bairroName, cityName, locale) {
+  const place = bairroName ?? cityName;
+  return locale === "en" ? `a bar in ${place}` : `um bar ${inPlace(place)}`;
+}
+function shownDeal(row, week, city, live, locale) {
+  const deal = dealOf(row, city.slug);
+  if (namesBar(row, week.frozenAt, live)) return { ...deal, named: true, cityOnly: false };
+  return {
+    ...deal,
+    venueId: 0,
+    venueSlug: "",
+    venueName: anonymousBar(row.bairroName, city.name, locale),
+    bairro: null,
+    bairroName: null,
+    named: false,
+    cityOnly: row.bairroName === null
+  };
+}
+var rowName = (deal) => deal.named ? deal.venueName : capitalFirst(deal.venueName);
+
+// tools/scripts/src/social/archive.ts
+function readWeeks(file, city) {
+  if (!existsSync2(file)) return [];
+  const body = JSON.parse(readFileSync2(file, "utf8"));
+  if (body.city !== city || !Array.isArray(body.items))
+    throw new Error(`${file}: not ${city}'s Friday archive`);
+  return body.items;
+}
+var archiveText = (city, weeks, now) => `${JSON.stringify(
+  {
+    city,
+    updated_at: now.toISOString(),
+    license: LICENSE,
+    attribution: ATTRIBUTION,
+    items: [...weeks]
+  },
+  null,
+  1
+)}
+`;
+function freezeArchive(file, data, city, now = /* @__PURE__ */ new Date()) {
+  const ranking2 = cityRankings(data).find((row) => row.city.slug === city);
+  if (!ranking2) throw new Error(`unknown city: ${city}`);
+  const today = localDate(Math.floor(now.getTime() / 1e3), ranking2.city.timezone);
+  const weeks = readWeeks(file, city);
+  const updated = addWeek(weeks, freezeWeek(ranking2, today));
+  const added = updated.length > weeks.length;
+  if (added) {
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, archiveText(city, updated, now));
+  }
+  return { added, frozen: updated.find((week) => week.friday === today) ?? null };
+}
 
 // tools/scripts/src/social/posts.ts
 var POST_MIN_BARS = 5;
@@ -1303,9 +1510,15 @@ function buildPosts(data, options) {
       (a, b) => venuesIn(b.ranked) - venuesIn(a.ranked) || a.bairro.name.localeCompare(b.bairro.name, "pt-BR")
     ).slice(0, options.maxBairros ?? MAX_BAIRRO_POSTS);
   }
+  const frozen = options.frozen ?? null;
+  const live = liveBars(data.venues);
   const post = (ranked, bairro) => {
     const place = bairro?.name ?? city.name;
     const route = bairro ? path("neighbourhood", "pt-BR", { city: city.slug, bairro: bairro.slug }) : path("city", "pt-BR", { city: city.slug });
+    const top = !bairro && frozen ? [...frozen.top].sort((a, b) => a.rank - b.rank).slice(0, TOP).map((row) => {
+      const deal = shownDeal(row, frozen, city, live, "pt-BR");
+      return entryOf({ ...deal, venueName: rowName(deal), more: 0 }, row.rank);
+    }) : onePerBar(ranked).slice(0, TOP).map((deal, index) => entryOf(deal, index + 1));
     return {
       key: bairro?.slug ?? city.slug,
       city: { slug: city.slug, name: city.name },
@@ -1317,7 +1530,8 @@ function buildPosts(data, options) {
       updated,
       bars: venuesIn(ranked),
       prices: ranked.length,
-      top: onePerBar(ranked).slice(0, TOP).map((deal, index) => entryOf(deal, index + 1))
+      top,
+      sextou: !bairro && frozen ? `${SITE}${path("sextou", "pt-BR", { city: city.slug })}` : null
     };
   };
   const posts = [];
@@ -1353,6 +1567,7 @@ function caption(post) {
       ].join("\n"),
       "Pre\xE7o por litro para comparar lata, long neck, garrafa e chopp: quanto menor, mais cerveja pelo seu dinheiro. S\xF3 bares, um pre\xE7o por bar (o mais barato).",
       `O top ${post.top.length} est\xE1 no carrossel. O mapa completo, com ${post.bars} bares ${inPlace(post.bairro?.name ?? post.city.name)}, est\xE1 no link da bio: ${post.url}`,
+      ...post.sextou ? [`O top 10 desta sexta e a mais barata de cada semana: ${post.sextou}`] : [],
       `Dados de ${post.updated}; os pre\xE7os podem mudar. Viu um pre\xE7o diferente? Avise pelo site.`,
       `\xC9 dono de bar? Mande o seu card\xE1pio: ${SITE}/para-bares`,
       CONAR,
@@ -1566,7 +1781,7 @@ async function liveData(city) {
 }
 function fonts() {
   const require2 = createRequire(import.meta.url);
-  const read = (file) => readFileSync2(require2.resolve(file)).toString("base64");
+  const read = (file) => readFileSync3(require2.resolve(file)).toString("base64");
   return {
     rubik: read("@fontsource-variable/rubik/files/rubik-latin-wght-normal.woff2"),
     yellowtail: read("@fontsource/yellowtail/files/yellowtail-latin-400-normal.woff2")
@@ -1587,7 +1802,8 @@ async function main() {
       snapshot: { type: "string" },
       max: { type: "string" },
       upload: { type: "boolean", default: false },
-      batch: { type: "string" }
+      batch: { type: "string" },
+      archive: { type: "string" }
     }
   });
   if (!values.out) throw new Error("--out <dir> is required");
@@ -1595,12 +1811,15 @@ async function main() {
   const batch = values.batch ?? batchName("manual", /* @__PURE__ */ new Date());
   const city = values.city ?? "salvador";
   const data = values.snapshot ? readSnapshot(values.snapshot) : await liveData(city);
+  const archive = values.archive ? freezeArchive(values.archive, data, city) : null;
+  if (archive?.added) console.log(`${values.archive}: froze this Friday's top 10`);
   const posts = buildPosts(data, {
     city,
     bairros: values.bairros?.split(",").map((slug) => slug.trim()),
-    maxBairros: values.max ? Number(values.max) : void 0
+    maxBairros: values.max ? Number(values.max) : void 0,
+    frozen: archive?.frozen ?? null
   });
-  mkdirSync(values.out, { recursive: true });
+  mkdirSync2(values.out, { recursive: true });
   const { chromium } = await import("@playwright/test");
   const browser = await chromium.launch();
   try {
@@ -1624,7 +1843,7 @@ async function main() {
         }
       }
       const text = caption(post);
-      writeFileSync(join2(values.out, `caption-${index + 1}-${post.key}.txt`), `${text}
+      writeFileSync2(join2(values.out, `caption-${index + 1}-${post.key}.txt`), `${text}
 `);
       const first = post.top[0];
       console.log(
@@ -1638,7 +1857,7 @@ async function main() {
             key: post.key,
             title: post.headline,
             caption: text,
-            slides: files.map((file) => readFileSync2(file).toString("base64"))
+            slides: files.map((file) => readFileSync3(file).toString("base64"))
           },
           target
         );

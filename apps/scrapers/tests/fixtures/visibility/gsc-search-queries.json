@@ -1,0 +1,40 @@
+{
+  "rows": [
+    {
+      "keys": ["cerveja barata"],
+      "clicks": 60,
+      "impressions": 500,
+      "ctr": 0.12,
+      "position": 1.8
+    },
+    {
+      "keys": ["cervejabarata.com.br"],
+      "clicks": 20,
+      "impressions": 40,
+      "ctr": 0.5,
+      "position": 1
+    },
+    {
+      "keys": ["preço cerveja salvador"],
+      "clicks": 30,
+      "impressions": 900,
+      "ctr": 0.0333,
+      "position": 7.2
+    },
+    {
+      "keys": ["happy hour rio vermelho"],
+      "clicks": 10,
+      "impressions": 700,
+      "ctr": 0.0142,
+      "position": 9.6
+    },
+    {
+      "keys": ["quanto custa uma cerveja em salvador"],
+      "clicks": 5,
+      "impressions": 400,
+      "ctr": 0.0125,
+      "position": 14.3
+    }
+  ],
+  "responseAggregationType": "byProperty"
+}

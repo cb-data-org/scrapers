@@ -1,0 +1,4 @@
+﻿id,slug,name,kind,on_site,lat,lng,address,neighbourhood,neighbourhood_name,instagram,opening_hours,attributes,osm_ref,cheapest_price_per_litre_brl,deal_count,url
+1,groove-bar,Groove Bar,outro,true,-13.009015,-38.528493,"Avenida Almirante Marques de Leão, 351",barra,Barra,,,,node/565775356,,0,
+2,boteco-do-farol,Boteco do Farol,boteco,true,-13.009937,-38.531644,,barra,Barra,,,,node/612570351,,0,
+3,brasil-legal,Brasil Legal,restaurante,true,-13.008946,-38.530796,Rua Afonso Celso,barra,Barra,,,,node/612570426,,0,

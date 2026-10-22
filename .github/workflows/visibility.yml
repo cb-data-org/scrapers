@@ -1,0 +1,103 @@
+name: Visibility (monthly)
+
+# The visibility monitor (apps/scrapers: cb_scrapers.visibility; off-page audit N12). On the 1st at 09:00 in
+# Salvador it writes the month's report in the run's summary, headed by one line: Google (Search Console: key
+# pages indexed, clicks and impressions in Brazil, brand against the rest), Bing (Webmaster Tools: pages indexed,
+# key pages crawled, new hub pages submitted), the AI crawlers' probe, Common Crawl, the MCP listings (registry,
+# Glama, Smithery), visits from AI assistants (Web Analytics) and Wayback Machine captures of the index and press
+# pages. Every Monday it only probes the AI crawlers, and the run fails when one is refused (Cloudflare's
+# defaults can change). A secret that isn't set is named in the report, never silently skipped; the owner's
+# setup is docs/RUNBOOK.md §15d. No admin token here: a Telegram line waits for an ingest-scoped endpoint on
+# the site (a TODO in cb_scrapers/visibility/__main__.py). Last month's numbers come from the previous run's
+# artifact (counts and our own URLs only: this repository's runs are public). GitHub drops scheduled runs now
+# and then, so the 1st has two more tries that stop at once when the month's report already exists.
+# Public repository: GitHub Actions minutes are free.
+on:
+  schedule:
+    - cron: "0 12 1 * *"
+    - cron: "0 16 1 * *"
+    - cron: "0 12 2 * *"
+    - cron: "30 12 * * 1"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Report only: no Bing submissions, no Wayback captures, no artifact for next month"
+        type: boolean
+        default: false
+      only:
+        description: "Sections, comma-separated (empty: all): google, bing, crawlers, common_crawl, listings, analytics"
+        default: ""
+
+concurrency:
+  group: visibility
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  visibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/scrapers
+    env:
+      CB_GSC_SA_JSON: ${{ secrets.CB_GSC_SA_JSON }}
+      BING_WEBMASTER_API_KEY: ${{ secrets.BING_WEBMASTER_API_KEY }}
+      CB_CF_ANALYTICS_TOKEN: ${{ secrets.CB_CF_ANALYTICS_TOKEN }}
+      CB_CF_ACCOUNT_ID: ${{ vars.CB_CF_ACCOUNT_ID }}
+      WEEKLY: ${{ github.event.schedule == '30 12 * * 1' }}
+      DRY_RUN: ${{ inputs.dry_run }}
+      ONLY: ${{ inputs.only }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          working-directory: apps/scrapers
+          enable-cache: true
+      - run: uv sync --locked --no-dev --extra monitor
+      - name: Last month's report
+        id: previous
+        if: env.WEEKLY != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          newest=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=visibility&per_page=10" \
+            --jq '[.artifacts[] | select(.expired | not)][0] // empty | "\(.id) \(.created_at)"')
+          [ -n "$newest" ] || exit 0
+          id=${newest%% *}
+          created=${newest#* }
+          # A scheduled retry stops when this month's report already went out.
+          if [ "$GITHUB_EVENT_NAME" = "schedule" ] && [ "${created:0:7}" = "$(date -u +%Y-%m)" ]; then
+            echo "done=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::This month's report went out already ($created)."
+            exit 0
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" > "$RUNNER_TEMP/previous.zip"
+          unzip -o -q "$RUNNER_TEMP/previous.zip" -d "$RUNNER_TEMP/previous"
+      - name: Report
+        if: steps.previous.outputs.done != 'true'
+        run: |
+          args=(--out "$RUNNER_TEMP/visibility")
+          if [ "$WEEKLY" = "true" ]; then
+            args+=(--only crawlers --fail-on-alert)
+          else
+            if [ -f "$RUNNER_TEMP/previous/visibility.json" ]; then
+              args+=(--previous "$RUNNER_TEMP/previous/visibility.json")
+            fi
+            if [ -n "$ONLY" ]; then args+=(--only "$ONLY"); fi
+            if [ "$DRY_RUN" != "true" ]; then args+=(--submit --archive); fi
+          fi
+          uv run --no-sync python -m cb_scrapers.visibility "${args[@]}"
+      - run: cat "$RUNNER_TEMP/visibility/report.md" >> "$GITHUB_STEP_SUMMARY"
+        if: always() && steps.previous.outputs.done != 'true'
+      # Next month's comparison; a dry run keeps none, so the hub pages it saw still count as new.
+      - uses: actions/upload-artifact@v4
+        if: always() && env.WEEKLY != 'true' && env.DRY_RUN != 'true' && steps.previous.outputs.done != 'true'
+        with:
+          name: visibility
+          path: ${{ runner.temp }}/visibility/visibility.json
+          retention-days: 90
+          if-no-files-found: ignore

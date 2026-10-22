@@ -11,6 +11,8 @@ uv run cb list                         # adapters and cadences
 uv run cb run cardapioweb --dry-run    # print items as JSON lines, send nothing
 uv run cb run --due                    # what GitHub Actions runs
 uv run pytest && uv run ruff check && uv run ruff format --check
+uv run python -m cb_scrapers.visibility --out DIR         # the visibility report (read-only without --submit/--archive)
+uv run python -m cb_scrapers.opendata snapshot --out DIR  # the open-data snapshot and its cards
 ```
 
 Sending needs two environment variables (GitHub secrets in CI, never committed):

@@ -1,0 +1,33 @@
+{
+  "servers": [
+    {
+      "server": {
+        "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+        "name": "br.com.cervejabarata/mcp",
+        "description": "Beer prices in Brazilian bars ranked by price per litre: search, cheapest now, bars, price index",
+        "title": "Cerveja Barata",
+        "version": "0.2.1",
+        "websiteUrl": "https://cervejabarata.com.br/en/developers",
+        "icons": [
+          {
+            "src": "https://cervejabarata.com.br/favicon.svg",
+            "mimeType": "image/svg+xml",
+            "sizes": ["any"]
+          },
+          { "src": "https://cervejabarata.com.br/logo.png", "mimeType": "image/png", "sizes": ["512x512"] }
+        ],
+        "remotes": [{ "type": "streamable-http", "url": "https://cervejabarata.com.br/mcp" }]
+      },
+      "_meta": {
+        "io.modelcontextprotocol.registry/official": {
+          "status": "active",
+          "statusChangedAt": "2026-10-15T09:57:31.425589Z",
+          "publishedAt": "2026-10-15T09:57:31.425589Z",
+          "updatedAt": "2026-10-15T09:57:31.425589Z",
+          "isLatest": true
+        }
+      }
+    }
+  ],
+  "metadata": { "count": 1 }
+}

@@ -6,6 +6,8 @@ name: Social (weekly)
 # Instagram only gets a post when an admin taps Publish. Friday mornings, so people share it ahead of the
 # weekend: 09:00, 09:40 and 10:20 in Salvador (GitHub skips scheduled runs now and then; the site ignores a
 # post it already has, so the extra runs cost nothing). Run it by hand to send a fresh set for review now.
+# On Fridays the first run also freezes the week's top 10 into data/sextou/salvador.json and commits it: the site's
+# Sextou page (cervejabarata.com.br/salvador/sextou) reads that file, so it shows the carousel's own ranking.
 on:
   schedule:
     - cron: "0 12 * * 5"
@@ -18,7 +20,8 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: read
+  # Write: the Friday top 10 is committed to data/sextou (the only file this workflow ever changes).
+  contents: write
 
 jobs:
   render:
@@ -49,7 +52,21 @@ jobs:
           else
             batch="manual-$GITHUB_RUN_ID"
           fi
-          node social.mjs --out "$RUNNER_TEMP/social" --upload --batch "$batch"
+          node social.mjs --out "$RUNNER_TEMP/social" --upload --batch "$batch" \
+            --archive "$GITHUB_WORKSPACE/data/sextou/salvador.json"
+      - name: Keep the Friday top 10
+        working-directory: .
+        run: |
+          if [ -z "$(git status --porcelain -- data/sextou)" ]; then
+            echo "No new Friday top 10."
+            exit 0
+          fi
+          git config user.name "Cerveja Barata Bot"
+          git config user.email "bot@cervejabarata.com.br"
+          git add data/sextou
+          git commit --quiet -m "Sextou: top 10 de $(TZ=America/Bahia date +%F)"
+          git pull --quiet --rebase origin main
+          git push --quiet origin HEAD:main
       - uses: actions/upload-artifact@v4
         if: always()
         with:

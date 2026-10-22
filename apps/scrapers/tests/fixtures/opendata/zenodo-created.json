@@ -1,0 +1,24 @@
+{
+  "conceptrecid": "1233",
+  "created": "2026-07-02T12:01:00.000000+00:00",
+  "doi": "",
+  "doi_url": "",
+  "files": [],
+  "id": 1300,
+  "links": {
+    "bucket": "https://zenodo.org/api/files/bucket-1300",
+    "html": "https://zenodo.org/deposit/1300",
+    "latest_draft": "https://zenodo.org/api/deposit/depositions/1300",
+    "self": "https://zenodo.org/api/deposit/depositions/1300"
+  },
+  "metadata": {
+    "title": "Another dataset",
+    "upload_type": "dataset",
+    "related_identifiers": []
+  },
+  "owner": 424242,
+  "record_id": 1300,
+  "state": "unsubmitted",
+  "submitted": false,
+  "title": "Another dataset"
+}

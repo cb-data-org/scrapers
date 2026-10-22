@@ -1,18 +1,14 @@
 name: Scrapers
 
-# Preço da Hora up to three times an hour (at most 30 searches, 20 s apart: about ten minutes; one run at a
-# time), so a round over the whole city finishes inside the site's 72-hour window, and every run also does any
-# other adapter that is due (OpenStreetMap and Overture weekly, the venue classifier daily). GitHub drops many
-# scheduled runs under load (two of thirteen hourly ones ran on 10-11 Oct 2026, none for seven hours on 11 Oct),
-# so each run also starts the next one NEXT_RUN_WAIT seconds after it ends (a dispatch, which GITHUB_TOKEN may
-# trigger); the schedule only restarts that chain. One run at a time (the concurrency group): a run waiting its
-# turn replaces any older waiting one.
-# The chain must survive a slow day (14 Oct 2026: Gemini "high demand" kept the Instagram adapter going until the
-# job's time limit, twice, and a cancelled run started no next one): "Run" has its own limit, under the job's, so
-# "Start the next run" always has its time, and it runs after a timeout or a failure too. It stops only after a
-# run of chosen adapters, a Preço da Hora block (403/429, a CAPTCHA, an unexpected page: the schedule tries
-# later) or with nothing configured. A run cancelled by hand chains as well: to stop the chain, disable the
-# workflow (gh workflow disable scrapers.yml).
+# Preço da Hora at most once an hour (owner, 15 Oct 2026, #701: the pace the letter to SEFAZ-BA states): a run is at
+# most 30 searches, 20 s apart (about ten minutes), and `cb run` starts one only an hour after the last one started
+# and never within six hours of a refusal (403/429, a CAPTCHA, an unexpected answer, robots.txt). It keeps both times
+# in the cache below (apps/scrapers/src/cb_scrapers/core/pace.py), so every run keeps that pace: scheduled or by hand.
+# GitHub drops many scheduled runs under load (two of thirteen hourly ones ran on 10-11 Oct 2026, none for seven hours
+# on 11 Oct), so the schedule tries three times an hour; a try that finds Preço da Hora not due only does any other
+# adapter that is (OpenStreetMap and Overture weekly, the venue classifier and Instagram daily). No run starts
+# another: the chain of 11-15 Oct 2026 is gone. One run at a time (the concurrency group); to stop the scrapers,
+# disable the workflow (gh workflow disable scrapers.yml).
 # Public repository: GitHub Actions minutes are free.
 on:
   schedule:
@@ -20,7 +16,7 @@ on:
   workflow_dispatch:
     inputs:
       adapters:
-        description: "Adapters to run now, space-separated (empty: the schedule's choice)"
+        description: "Adapters to run now, space-separated (empty: the schedule's choice; Preço da Hora keeps its pace)"
         default: ""
 
 concurrency:
@@ -29,12 +25,11 @@ concurrency:
 
 permissions:
   contents: read
-  actions: write
 
 jobs:
   run:
     runs-on: ubuntu-latest
-    # Set-up (about 2 min) + "Run" (at most 45) + the cache + "Start the next run" (an 8-minute wait).
+    # Set-up (about 2 min) + "Run" (at most 45) + saving the cache.
     timeout-minutes: 60
     defaults:
       run:
@@ -68,8 +63,8 @@ jobs:
           key: scrapers-cache-${{ github.run_id }}
           restore-keys: scrapers-cache-
       - name: Run
-        id: run
-        # Under the job's limit, so the next run always gets started (instagram_bd saves after each account).
+        # Under the job's limit, so the cache is always saved: the queue, and the pace (instagram_bd saves after
+        # each account).
         timeout-minutes: 45
         run: |
           if [ -z "$CB_API_URL" ] || [ -z "$CB_INGEST_TOKEN" ]; then
@@ -86,23 +81,3 @@ jobs:
         with:
           path: .scrapers-cache
           key: scrapers-cache-${{ github.run_id }}
-      - name: Start the next run
-        # Also after a timeout, a failure or a cancel; never after a run of chosen adapters.
-        if: ${{ always() && inputs.adapters == '' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-          NEXT_RUN_WAIT: "480"
-          # Adapters the site refused this run (`cb run` writes them); empty when "Run" was cut short.
-          BLOCKED: ${{ steps.run.outputs.blocked }}
-        run: |
-          if [ -z "$CB_API_URL" ] || [ -z "$CB_INGEST_TOKEN" ]; then
-            exit 0
-          fi
-          case " $BLOCKED " in
-            *" precodahora "*)
-              echo "::notice::Preço da Hora was blocked: no next run; the schedule tries again later."
-              exit 0
-              ;;
-          esac
-          sleep "$NEXT_RUN_WAIT"
-          gh workflow run scrapers.yml --ref "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY"

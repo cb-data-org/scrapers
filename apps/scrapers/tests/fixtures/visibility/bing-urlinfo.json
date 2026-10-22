@@ -1,0 +1,13 @@
+{
+  "d": {
+    "__type": "UrlInfo:#Microsoft.Bing.Webmaster.Api",
+    "AnchorCount": 3,
+    "DiscoveryDate": "/Date(1791936000000-0700)/",
+    "DocumentSize": 104289,
+    "HttpStatus": 200,
+    "IsPage": true,
+    "LastCrawledDate": "/Date(1792995120000-0700)/",
+    "TotalChildUrlCount": 0,
+    "Url": "https://cervejabarata.com.br/"
+  }
+}

@@ -1,0 +1,105 @@
+{
+  "type": "FeatureCollection",
+  "updated_at": "2026-10-15T03:01:42.538Z",
+  "license": "ODbL-1.0",
+  "attribution": "Cerveja Barata (cervejabarata.com.br); receipt prices: Preço da Hora Bahia, Bahia State Treasury (SEFAZ-BA); venues © OpenStreetMap contributors and Overture Maps Foundation",
+  "city": "salvador",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "acupe",
+      "properties": {
+        "id": 20,
+        "slug": "acupe",
+        "name": "Acupe",
+        "aliases": [],
+        "centroid_lat": -12.99376,
+        "centroid_lng": -38.49283,
+        "bbox": [
+          -38.49699,
+          -12.99753,
+          -38.48943,
+          -12.98847
+        ],
+        "pages_enabled": false,
+        "venue_count": 7,
+        "priced_venue_count": 4
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -38.49264,
+              -12.99753
+            ],
+            [
+              -38.49202,
+              -12.99713
+            ],
+            [
+              -38.49188,
+              -12.99688
+            ],
+            [
+              -38.49137,
+              -12.99666
+            ],
+            [
+              -38.49264,
+              -12.99753
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "aeroporto",
+      "properties": {
+        "id": 21,
+        "slug": "aeroporto",
+        "name": "Aeroporto",
+        "aliases": [],
+        "centroid_lat": -12.91543,
+        "centroid_lng": -38.33241,
+        "bbox": [
+          -38.34937,
+          -12.93317,
+          -38.30562,
+          -12.89876
+        ],
+        "pages_enabled": false,
+        "venue_count": 19,
+        "priced_venue_count": 2
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -38.34418,
+              -12.90473
+            ],
+            [
+              -38.34779,
+              -12.90848
+            ],
+            [
+              -38.34818,
+              -12.90829
+            ],
+            [
+              -38.34882,
+              -12.90833
+            ],
+            [
+              -38.34418,
+              -12.90473
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

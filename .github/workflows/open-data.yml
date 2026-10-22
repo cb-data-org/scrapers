@@ -1,0 +1,89 @@
+name: Open data (monthly)
+
+# A frozen monthly snapshot of the site's open data (the static files under /api/v1, ODbL 1.0) for the mirrors
+# the off-page audit lists (L5): Hugging Face and Kaggle every month, Zenodo (one DOI per version) in January,
+# April, July and October. apps/scrapers: cb_scrapers.opendata downloads one build's files, checks they agree,
+# and writes the dataset card (Portuguese and English, with the licence, the sources' credits and how to cite),
+# Kaggle's dataset-metadata.json and Zenodo's metadata. Each platform is pushed only when its token is set, on
+# the brand's own accounts (docs/RUNBOOK.md §16b); until then a run only builds the snapshot and keeps it as an
+# artifact. On the 2nd, after the 1st's price-index freeze and the rebuild that follows it.
+# Public repository: GitHub Actions minutes are free.
+on:
+  schedule:
+    - cron: "0 12 2 * *"
+  workflow_dispatch:
+    inputs:
+      zenodo:
+        description: "Publish a Zenodo version now too (otherwise only in January, April, July and October)"
+        type: boolean
+        default: false
+      dry_run:
+        description: "Build the snapshot only; push nothing"
+        type: boolean
+        default: false
+
+concurrency:
+  group: open-data
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/scrapers
+    env:
+      DRY_RUN: ${{ inputs.dry_run }}
+      # owner/name on each platform (empty: cervejabarata/precos-de-cerveja).
+      CB_HF_DATASET: ${{ vars.CB_HF_DATASET }}
+      CB_KAGGLE_DATASET: ${{ vars.CB_KAGGLE_DATASET }}
+      # https://sandbox.zenodo.org to try Zenodo out first (a token from the sandbox's own account).
+      CB_ZENODO_URL: ${{ vars.CB_ZENODO_URL }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          working-directory: apps/scrapers
+          enable-cache: true
+      - run: uv sync --locked --no-dev
+      - name: Snapshot
+        run: uv run --no-sync python -m cb_scrapers.opendata snapshot --out "$RUNNER_TEMP/open-data"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: open-data
+          path: ${{ runner.temp }}/open-data
+          include-hidden-files: true
+          retention-days: 30
+      - name: Hugging Face
+        if: env.DRY_RUN != 'true'
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          if [ -n "$HF_TOKEN" ]; then uv pip install --quiet 'huggingface_hub==2.1.1'; fi
+          uv run --no-sync python -m cb_scrapers.opendata publish huggingface --dir "$RUNNER_TEMP/open-data"
+      - name: Kaggle
+        if: env.DRY_RUN != 'true'
+        env:
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+          CB_KAGGLE_CLI: uvx --from kaggle==2.2.4 kaggle
+        run: uv run --no-sync python -m cb_scrapers.opendata publish kaggle --dir "$RUNNER_TEMP/open-data"
+      - name: Zenodo (quarterly)
+        if: env.DRY_RUN != 'true'
+        env:
+          ZENODO_TOKEN: ${{ secrets.ZENODO_TOKEN }}
+          ZENODO_NOW: ${{ inputs.zenodo }}
+        run: |
+          case "$(date -u +%-m)" in
+            1|4|7|10) ;;
+            *)
+              if [ "$ZENODO_NOW" != "true" ]; then
+                echo "Zenodo gets a version in January, April, July and October."
+                exit 0
+              fi
+              ;;
+          esac
+          uv run --no-sync python -m cb_scrapers.opendata publish zenodo --dir "$RUNNER_TEMP/open-data"

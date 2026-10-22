@@ -1,0 +1,4 @@
+﻿id,venue_id,venue_name,venue_slug,neighbourhood,lat,lng,brand,brand_name,beer,beer_name,non_alcoholic,format_code,format_type,volume_ml,units,packaging,total_volume_ml,price_brl,price_per_litre_brl,currency,kind,open_bar_minutes,schedules,conditions,service_charge_pct,couvert_brl,valid_from,valid_until,last_verified_on,last_verified_via,confirm_count,open_disputes
+26,929,Boteco RV,boteco-rv,rio-vermelho,-13.01114,-38.49202,brahma,Brahma,brahma-duplo-malte,Brahma Duplo Malte,0,garrafa_600,garrafa,600,1,single,600,17.90,29.83,BRL,regular,,,,,,,,2026-10-06,structured,0,0
+28,1417,Boteco do Caranguejo,boteco-do-caranguejo-pituba,pituba,-12.991314,-38.460739,amstel,Amstel,,,0,garrafa_600,garrafa,600,1,single,600,12.99,21.65,BRL,regular,,,,,,,,2026-10-06,structured,0,0
+31,1473,Espetinho dos Dinhos,espetinho-dos-dinhos-limitada,costa-azul,-12.994614,-38.446207,amstel,Amstel,,,0,lata_350,lata,350,1,single,350,7.50,21.43,BRL,regular,,,,,,,,2026-10-06,structured,0,0

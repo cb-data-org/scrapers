@@ -1,0 +1,28 @@
+{
+  "d": [
+    {
+      "__type": "RankAndTrafficStats:#Microsoft.Bing.Webmaster.Api",
+      "Clicks": 99,
+      "Date": "/Date(1785542400000-0700)/",
+      "Impressions": 999
+    },
+    {
+      "__type": "RankAndTrafficStats:#Microsoft.Bing.Webmaster.Api",
+      "Clicks": 4,
+      "Date": "/Date(1791936000000-0700)/",
+      "Impressions": 120
+    },
+    {
+      "__type": "RankAndTrafficStats:#Microsoft.Bing.Webmaster.Api",
+      "Clicks": 6,
+      "Date": "/Date(1792540800000-0700)/",
+      "Impressions": 180
+    },
+    {
+      "__type": "RankAndTrafficStats:#Microsoft.Bing.Webmaster.Api",
+      "Clicks": 15,
+      "Date": "/Date(1793145600000-0700)/",
+      "Impressions": 300
+    }
+  ]
+}

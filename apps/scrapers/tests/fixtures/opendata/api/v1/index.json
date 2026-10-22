@@ -1,0 +1,25 @@
+{
+  "updated_at": "2026-10-15T03:01:42.538Z",
+  "license": "ODbL-1.0",
+  "attribution": "Cerveja Barata (cervejabarata.com.br); receipt prices: Preço da Hora Bahia, Bahia State Treasury (SEFAZ-BA); venues © OpenStreetMap contributors and Overture Maps Foundation",
+  "catalog": "/api/v1/catalog.json",
+  "cities": [
+    {
+      "slug": "salvador",
+      "name": "Salvador",
+      "venue_count": 3,
+      "deal_count": 3,
+      "datasets": {
+        "deals": "/api/v1/salvador/deals.json",
+        "deals_csv": "/api/v1/salvador/deals.csv",
+        "venues": "/api/v1/salvador/venues.json",
+        "venues_csv": "/api/v1/salvador/venues.csv",
+        "venues_all": "/api/v1/salvador/venues-all.json",
+        "venues_all_csv": "/api/v1/salvador/venues-all.csv",
+        "price_index": "/api/v1/salvador/price-index.json",
+        "price_index_csv": "/api/v1/salvador/price-index.csv",
+        "neighbourhoods": "/api/v1/salvador/neighbourhoods.geojson"
+      }
+    }
+  ]
+}

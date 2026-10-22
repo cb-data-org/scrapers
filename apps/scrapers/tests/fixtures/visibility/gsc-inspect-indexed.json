@@ -1,0 +1,21 @@
+{
+  "inspectionResult": {
+    "inspectionResultLink": "https://search.google.com/search-console/inspect?resource_id=sc-domain:cervejabarata.com.br&id=test",
+    "indexStatusResult": {
+      "sitemap": ["https://cervejabarata.com.br/sitemap.xml"],
+      "referringUrls": ["https://cervejabarata.com.br/"],
+      "verdict": "PASS",
+      "coverageState": "Submitted and indexed",
+      "robotsTxtState": "ALLOWED",
+      "indexingState": "INDEXING_ALLOWED",
+      "lastCrawlTime": "2026-10-26T06:12:41.045123456Z",
+      "pageFetchState": "SUCCESSFUL",
+      "googleCanonical": "https://cervejabarata.com.br/salvador",
+      "userCanonical": "https://cervejabarata.com.br/salvador",
+      "crawledAs": "MOBILE"
+    },
+    "mobileUsabilityResult": {
+      "verdict": "VERDICT_UNSPECIFIED"
+    }
+  }
+}

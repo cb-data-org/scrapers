@@ -1,0 +1,119 @@
+[
+  {
+    "conceptrecid": "1233",
+    "created": "2026-07-02T12:01:00.000000+00:00",
+    "doi": "10.5281/zenodo.1200",
+    "doi_url": "https://doi.org/10.5281/zenodo.1200",
+    "files": [],
+    "id": 1200,
+    "links": {
+      "bucket": "https://zenodo.org/api/files/bucket-1200",
+      "html": "https://zenodo.org/deposit/1200",
+      "latest_draft": "https://zenodo.org/api/deposit/depositions/1200",
+      "self": "https://zenodo.org/api/deposit/depositions/1200"
+    },
+    "metadata": {
+      "title": "Cerveja Barata: beer prices in Brazil, open data snapshot",
+      "upload_type": "dataset",
+      "related_identifiers": [
+        {
+          "identifier": "https://cervejabarata.com.br/dados",
+          "relation": "isDerivedFrom",
+          "resource_type": "dataset",
+          "scheme": "url"
+        }
+      ]
+    },
+    "owner": 424242,
+    "record_id": 1200,
+    "state": "done",
+    "submitted": true,
+    "title": "Cerveja Barata: beer prices in Brazil, open data snapshot"
+  },
+  {
+    "conceptrecid": "1233",
+    "created": "2026-07-02T12:01:00.000000+00:00",
+    "doi": "10.5281/zenodo.1234",
+    "doi_url": "https://doi.org/10.5281/zenodo.1234",
+    "files": [],
+    "id": 1234,
+    "links": {
+      "bucket": "https://zenodo.org/api/files/bucket-1234",
+      "html": "https://zenodo.org/deposit/1234",
+      "latest_draft": "https://zenodo.org/api/deposit/depositions/1234",
+      "self": "https://zenodo.org/api/deposit/depositions/1234"
+    },
+    "metadata": {
+      "title": "Cerveja Barata: beer prices in Brazil, open data snapshot",
+      "upload_type": "dataset",
+      "related_identifiers": [
+        {
+          "identifier": "https://cervejabarata.com.br/dados",
+          "relation": "isDerivedFrom",
+          "resource_type": "dataset",
+          "scheme": "url"
+        }
+      ]
+    },
+    "owner": 424242,
+    "record_id": 1234,
+    "state": "done",
+    "submitted": true,
+    "title": "Cerveja Barata: beer prices in Brazil, open data snapshot"
+  },
+  {
+    "conceptrecid": "1233",
+    "created": "2026-07-02T12:01:00.000000+00:00",
+    "doi": "10.5281/zenodo.1250",
+    "doi_url": "https://doi.org/10.5281/zenodo.1250",
+    "files": [],
+    "id": 1250,
+    "links": {
+      "bucket": "https://zenodo.org/api/files/bucket-1250",
+      "html": "https://zenodo.org/deposit/1250",
+      "latest_draft": "https://zenodo.org/api/deposit/depositions/1250",
+      "self": "https://zenodo.org/api/deposit/depositions/1250"
+    },
+    "metadata": {
+      "title": "Another dataset",
+      "upload_type": "dataset",
+      "related_identifiers": []
+    },
+    "owner": 424242,
+    "record_id": 1250,
+    "state": "done",
+    "submitted": true,
+    "title": "Another dataset"
+  },
+  {
+    "conceptrecid": "1233",
+    "created": "2026-07-02T12:01:00.000000+00:00",
+    "doi": "",
+    "doi_url": "",
+    "files": [],
+    "id": 1260,
+    "links": {
+      "bucket": "https://zenodo.org/api/files/bucket-1260",
+      "html": "https://zenodo.org/deposit/1260",
+      "latest_draft": "https://zenodo.org/api/deposit/depositions/1260",
+      "self": "https://zenodo.org/api/deposit/depositions/1260"
+    },
+    "metadata": {
+      "title": "Cerveja Barata: beer prices in Brazil, open data snapshot",
+      "upload_type": "dataset",
+      "related_identifiers": [
+        {
+          "identifier": "https://cervejabarata.com.br/dados",
+          "relation": "isDerivedFrom",
+          "resource_type": "dataset",
+          "scheme": "url"
+        }
+      ]
+    },
+    "owner": 424242,
+    "record_id": 1260,
+    "state": "unsubmitted",
+    "submitted": false,
+    "title": "Cerveja Barata: beer prices in Brazil, open data snapshot"
+  }
+]

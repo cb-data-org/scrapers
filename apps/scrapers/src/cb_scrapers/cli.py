@@ -12,6 +12,8 @@
     uv run cb run venue_classify           two LLM votes on what each venue is (bar, depósito, store…)
 
 Sending needs CB_API_URL (site or staging origin) and CB_INGEST_TOKEN (an ingest-scoped admin token).
+A paced source (Preço da Hora: at most a run an hour, none for six hours after a refusal) keeps its pace on
+every run, dry runs too; the pace book lives in the cache folder (core/pace.py).
 """
 
 import argparse
@@ -22,6 +24,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from .core.ingest import DryRunSink, IngestClient
+from .core.pace import PaceBook
 from .core.registry import all_adapters
 from .core.runner import Sink, due_adapters, run_adapter
 
@@ -121,7 +124,12 @@ def main(argv: list[str] | None = None) -> int:
     adapters = all_adapters()
     if args.command == "list":
         for name, cls in adapters.items():
-            print(f"{name}\t{cls.cadence.label or cls.cadence.every}\t{cls.delay:g}s between requests")
+            pace = (
+                f"\tat most every {cls.pace.every}, none for {cls.pace.after_block} after a block"
+                if cls.pace
+                else ""
+            )
+            print(f"{name}\t{cls.cadence.label or cls.cadence.every}\t{cls.delay:g}s between requests{pace}")
         return 0
 
     if not args.names and not args.due:
@@ -138,11 +146,27 @@ def main(argv: list[str] | None = None) -> int:
             for cls in due_adapters(adapters, sink.last_success(), datetime.now(UTC))
             if cls not in selected
         ]
+    # A paced source keeps its pace whatever asked for the run: the schedule, a person, a dry run (#701).
+    book = PaceBook()
+    for cls in list(selected):
+        if cls.pace and (hold := book.hold(cls.name, cls.pace, datetime.now(UTC))):
+            log.info("%s: not now, %s", cls.name, hold.reason)
+            selected.remove(cls)
     if not selected:
         log.info("nothing is due")
         return 0
 
-    reports = [run_adapter(cls, sink, limit=args.limit) for cls in selected]
+    reports = []
+    for cls in selected:
+        if cls.pace:
+            book.started(cls.name, datetime.now(UTC))
+        report = run_adapter(cls, sink, limit=args.limit)
+        if cls.pace and report.status == "blocked":
+            now = datetime.now(UTC)
+            book.blocked(cls.name, now)
+            if hold := book.hold(cls.name, cls.pace, now):
+                log.warning("%s: %s", cls.name, hold.reason)
+        reports.append(report)
     for report in reports:
         log.info(
             "%s: %s · %d tasks · %d items · %d sent · %d errors",
@@ -153,11 +177,6 @@ def main(argv: list[str] | None = None) -> int:
             report.sent,
             report.error_count,
         )
-    blocked = [report.adapter for report in reports if report.status == "blocked"]
-    if blocked and (output := os.environ.get("GITHUB_OUTPUT")):
-        # The scrapers workflow starts no next run after a Preço da Hora block: the schedule tries later.
-        with open(output, "a", encoding="utf-8") as file:
-            file.write(f"blocked={' '.join(blocked)}\n")
     # A block is an expected, reported outcome (the daily digest shows it); only crashes fail the job.
     return 1 if any(report.status == "failed" for report in reports) else 0
 

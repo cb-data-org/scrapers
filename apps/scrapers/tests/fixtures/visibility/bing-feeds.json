@@ -1,0 +1,15 @@
+{
+  "d": [
+    {
+      "__type": "Feed:#Microsoft.Bing.Webmaster.Api",
+      "Compressed": false,
+      "FileSize": 322135,
+      "LastCrawled": "/Date(1792995120000-0700)/",
+      "Status": "Success",
+      "Submitted": "/Date(1791936000000-0700)/",
+      "Type": "Sitemap",
+      "Url": "https://cervejabarata.com.br/sitemap.xml",
+      "UrlCount": 626
+    }
+  ]
+}

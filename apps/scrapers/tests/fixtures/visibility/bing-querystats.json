@@ -1,0 +1,49 @@
+{
+  "d": [
+    {
+      "__type": "QueryStats:#Microsoft.Bing.Webmaster.Api",
+      "AvgClickPosition": 2,
+      "AvgImpressionPosition": 2,
+      "Clicks": 9,
+      "Date": "/Date(1785542400000-0700)/",
+      "Impressions": 90,
+      "Query": "cerveja gelada"
+    },
+    {
+      "__type": "QueryStats:#Microsoft.Bing.Webmaster.Api",
+      "AvgClickPosition": 3,
+      "AvgImpressionPosition": 3,
+      "Clicks": 5,
+      "Date": "/Date(1792540800000-0700)/",
+      "Impressions": 40,
+      "Query": "cerveja barata salvador"
+    },
+    {
+      "__type": "QueryStats:#Microsoft.Bing.Webmaster.Api",
+      "AvgClickPosition": 8,
+      "AvgImpressionPosition": 8,
+      "Clicks": 2,
+      "Date": "/Date(1792540800000-0700)/",
+      "Impressions": 60,
+      "Query": "preco cerveja salvador"
+    },
+    {
+      "__type": "QueryStats:#Microsoft.Bing.Webmaster.Api",
+      "AvgClickPosition": 12,
+      "AvgImpressionPosition": 12,
+      "Clicks": 0,
+      "Date": "/Date(1793145600000-0700)/",
+      "Impressions": 20,
+      "Query": "preco cerveja salvador"
+    },
+    {
+      "__type": "QueryStats:#Microsoft.Bing.Webmaster.Api",
+      "AvgClickPosition": 15,
+      "AvgImpressionPosition": 15,
+      "Clicks": 1,
+      "Date": "/Date(1793145600000-0700)/",
+      "Impressions": 30,
+      "Query": "bar barato pituba"
+    }
+  ]
+}

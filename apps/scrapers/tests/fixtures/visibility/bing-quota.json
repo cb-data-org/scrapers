@@ -1,0 +1,7 @@
+{
+  "d": {
+    "__type": "UrlSubmissionQuota:#Microsoft.Bing.Webmaster.Api",
+    "DailyQuota": 100,
+    "MonthlyQuota": 2800
+  }
+}

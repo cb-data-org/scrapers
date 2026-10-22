@@ -17,6 +17,13 @@ dependencies = [
 [project.scripts]
 cb = "cb_scrapers.cli:main"
 
+# The monthly visibility monitor (cb_scrapers.visibility) signs the Search Console service account's token with it;
+# only its workflow installs it (`uv sync --extra monitor`), so the scrapers' runs stay as they were.
+[project.optional-dependencies]
+monitor = [
+    "cryptography>=48",
+]
+
 [build-system]
 requires = ["uv_build>=0.12.23,<0.13.0"]
 build-backend = "uv_build"
@@ -36,6 +43,8 @@ addopts = "-q"
 
 [dependency-groups]
 dev = [
+    # The monitor extra's, so its tests run.
+    "cryptography>=48",
     "datamodel-code-generator>=0.83.0",
     "pytest>=9.1.1",
     "ruff>=0.16.10",

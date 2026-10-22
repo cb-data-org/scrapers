@@ -1,0 +1,36 @@
+{
+  "d": [
+    {
+      "__type": "CrawlStats:#Microsoft.Bing.Webmaster.Api",
+      "AllOtherCodes": 0,
+      "BlockedByRobotsTxt": 0,
+      "Code2xx": 40,
+      "Code301": 0,
+      "Code302": 0,
+      "Code4xx": 0,
+      "Code5xx": 0,
+      "ContainsMalware": 0,
+      "CrawlErrors": 0,
+      "CrawledPages": 40,
+      "Date": "/Date(1792540800000-0700)/",
+      "InIndex": 210,
+      "InLinks": 3
+    },
+    {
+      "__type": "CrawlStats:#Microsoft.Bing.Webmaster.Api",
+      "AllOtherCodes": 0,
+      "BlockedByRobotsTxt": 0,
+      "Code2xx": 54,
+      "Code301": 0,
+      "Code302": 0,
+      "Code4xx": 1,
+      "Code5xx": 0,
+      "ContainsMalware": 0,
+      "CrawlErrors": 1,
+      "CrawledPages": 55,
+      "Date": "/Date(1793145600000-0700)/",
+      "InIndex": 240,
+      "InLinks": 3
+    }
+  ]
+}

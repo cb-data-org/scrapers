@@ -1,0 +1,59 @@
+{
+  "updated_at": "2026-10-15T03:01:42.538Z",
+  "license": "ODbL-1.0",
+  "attribution": "Cerveja Barata (cervejabarata.com.br); receipt prices: Preço da Hora Bahia, Bahia State Treasury (SEFAZ-BA); venues © OpenStreetMap contributors and Overture Maps Foundation",
+  "brands": [
+    {
+      "id": 1,
+      "slug": "amstel",
+      "name": "Amstel",
+      "owner_group": null,
+      "craft": false
+    },
+    {
+      "id": 2,
+      "slug": "antarctica",
+      "name": "Antarctica",
+      "owner_group": null,
+      "craft": false
+    }
+  ],
+  "beers": [
+    {
+      "id": 1,
+      "slug": "amstel-lager",
+      "name": "Amstel Lager",
+      "brand": "amstel",
+      "style": "lager",
+      "abv": null,
+      "non_alcoholic": false
+    },
+    {
+      "id": 2,
+      "slug": "antarctica-original",
+      "name": "Original",
+      "brand": "original",
+      "style": "lager",
+      "abv": null,
+      "non_alcoholic": false
+    }
+  ],
+  "formats": [
+    {
+      "code": "lata_269",
+      "type": "lata",
+      "volume_ml": 269,
+      "label_pt": "Lata 269 ml",
+      "label_en": "Can 269 ml",
+      "sort": 0
+    },
+    {
+      "code": "lata_350",
+      "type": "lata",
+      "volume_ml": 350,
+      "label_pt": "Lata 350 ml",
+      "label_en": "Can 350 ml",
+      "sort": 1
+    }
+  ]
+}
