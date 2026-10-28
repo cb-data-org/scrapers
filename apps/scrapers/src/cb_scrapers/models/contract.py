@@ -25,7 +25,15 @@ class PublicDeal(BaseModel):
     neighbourhood: str | None
     url: str
     """
-    The bar's page on cervejabarata.com.br, to cite
+    The place's page on cervejabarata.com.br, to link when you quote the price
+    """
+    category: Literal["bar", "mercado", "deposito"]
+    """
+    The price's category: bar (to drink there), mercado (supermarket or corner shop) or deposito (drinks shop), the last two to take away
+    """
+    drink_on_site: bool
+    """
+    True for a price to drink there (a bar's), false for one to take away (a shop's)
     """
     beer: str
     brand: str | None
@@ -55,7 +63,7 @@ class PublicDeal(BaseModel):
     """
     possibly_out_of_date: bool
     """
-    Last checked more than 90 days ago
+    True when last checked more than 90 days ago. Bars' prices leave the lists after 180 days and shops' after 14, so it is always false for a shop
     """
     confirmations: int
     distance_m: int | None = None
@@ -91,7 +99,7 @@ class PublicVenue(BaseModel):
     name: str
     url: str | None
     """
-    The bar's page, once it has a price
+    The place's page, once it has a price
     """
     kind: str
     drink_on_site: bool
@@ -220,6 +228,54 @@ class BarOwnerRequest(BaseModel):
     """
 
 
+class PriceUpdateItem(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    item: Annotated[str, Field(max_length=80, min_length=2)]
+    """
+    The beer as written, or as the published price names it
+    """
+    deal: Annotated[int | None, Field(gt=0)] = None
+    """
+    The published price this one replaces, when it was picked from the venue's list
+    """
+    size_ml: Annotated[int, Field(ge=1, le=10000)]
+    """
+    One unit's size in ml (350 for a can)
+    """
+    pack_qty: Annotated[int, Field(ge=1, le=100)]
+    """
+    Units the price buys (12 for a twelve-pack, 1 for a bottle)
+    """
+    price_minor: Annotated[int, Field(ge=1, le=1000000)]
+    """
+    The new price in centavos (990 for R$ 9,90)
+    """
+
+
+class PhotoEvidence(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    kind: Literal["photo"]
+    image: Annotated[str, Field(max_length=700000)]
+    """
+    A JPEG photo as a data URI (base64), shrunk to at most 1600 px: it is forwarded to the team, not kept
+    """
+
+
+class NfceEvidence(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    kind: Literal["nfce"]
+    url: AnyUrl
+    """
+    The NFC-e's QR Code link, an http(s) address on *.gov.br
+    """
+
+
 class Image(RootModel[str]):
     root: Annotated[str, Field(max_length=700000)]
     """
@@ -277,6 +333,7 @@ class DealDispute(BaseModel):
     """
     What it costs now, in currency units (9.99)
     """
+    evidence: PhotoEvidence | None = None
     turnstile: Annotated[str, Field(max_length=2048, min_length=1)]
     """
     Cloudflare Turnstile token
@@ -1199,6 +1256,7 @@ class LeadActionRequest(BaseModel):
         "no_response",
         "do_not_contact",
         "note",
+        "reopen",
     ]
     note: Annotated[str | None, Field(max_length=200, min_length=1)] = None
     """
@@ -1320,6 +1378,25 @@ class Slide(RootModel[str]):
     """
 
 
+class Tag(BaseModel):
+    slide: Annotated[int, Field(ge=1, le=10)]
+    """
+    The slide that shows the bar (1 = the first)
+    """
+    venue: Annotated[int, Field(gt=0)]
+    """
+    The bar's venue id
+    """
+    x: Annotated[float, Field(ge=0.0, le=1.0)]
+    """
+    Where on the slide, from the left (0–1)
+    """
+    y: Annotated[float, Field(ge=0.0, le=1.0)]
+    """
+    Where on the slide, from the top (0–1)
+    """
+
+
 class SocialPostUpload(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -1342,6 +1419,10 @@ class SocialPostUpload(BaseModel):
     """
     caption: Annotated[str, Field(max_length=2200, min_length=1)]
     slides: Annotated[list[Slide], Field(max_length=10, min_length=1)]
+    tags: Annotated[list[Tag] | None, Field(max_length=40)] = None
+    """
+    The bars the slides show, with a fresh price, so the published post can tag their Instagram; the Worker keeps only bars with a handle, never a declined or do-not-contact one, and each at most every 14 days
+    """
 
 
 class Types(BaseModel):
@@ -2209,9 +2290,16 @@ class DealsResponse(BaseModel):
     as_of: str
     count: int
     deals: list[PublicDeal]
+    """
+    Bars' prices, cheapest per litre first; with `category`, only that kind. `count` is its length
+    """
     source: str
     """
     Attribution: Cerveja Barata (cervejabarata.com.br), ODbL
+    """
+    shops: list[PublicDeal] | None = None
+    """
+    Supermarkets' and depósitos' prices, to take away, cheapest per litre first, at most 5, never mixed with `deals`; absent when `category` is given
     """
     local_time: str | None = None
     """
@@ -2302,6 +2390,10 @@ class Submission(BaseModel):
     """
     Cloudflare Turnstile token
     """
+
+
+class PriceEvidence(RootModel[PhotoEvidence | NfceEvidence]):
+    root: Annotated[PhotoEvidence | NfceEvidence, Field(discriminator="kind")]
 
 
 class IngestItem1(BaseModel):
@@ -2756,6 +2848,39 @@ class SourcePage(BaseModel):
     next: int | None
     """
     Pass as `after` to get the next page; null on the last one
+    """
+
+
+class PriceUpdateRequest(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    city: Annotated[str, Field(pattern="^[a-z0-9]+(?:-[a-z0-9]+)*$")]
+    venue: Annotated[str, Field(pattern="^[a-z0-9]+(?:-[a-z0-9]+)*$")]
+    """
+    The bar's or shop's slug in that city
+    """
+    items: Annotated[list[PriceUpdateItem], Field(max_length=10, min_length=1)]
+    seen_on: date
+    """
+    City-local date the price was seen
+    """
+    evidence: PriceEvidence
+    name: Annotated[str | None, Field(max_length=80, min_length=2)] = None
+    """
+    Who to ask for
+    """
+    contact: Annotated[str | None, Field(max_length=120, min_length=5)] = None
+    """
+    WhatsApp, phone or email, only to ask about this update; deleted after 90 days
+    """
+    consent: Literal[True] | None = None
+    """
+    LGPD consent to be contacted: required with a contact
+    """
+    turnstile: Annotated[str, Field(max_length=2048, min_length=1)]
+    """
+    Cloudflare Turnstile token
     """
 
 

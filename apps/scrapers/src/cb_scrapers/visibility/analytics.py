@@ -82,7 +82,7 @@ def assistant(host: str) -> str | None:
     return None
 
 
-def collect(api: Api, token: str | None, account: str | None, now: datetime) -> Analytics:
+def collect(api: Api, token: str | None, account: str | None, now: datetime, days: int = DAYS) -> Analytics:
     result = Analytics()
     if not token or not account:
         result.status = "skipped"
@@ -92,7 +92,7 @@ def collect(api: Api, token: str | None, account: str | None, now: datetime) -> 
         )
         return result
     end = now.date() - timedelta(days=1)
-    start = end - timedelta(days=DAYS - 1)
+    start = end - timedelta(days=days - 1)
     result.start, result.end = start.isoformat(), end.isoformat()
     variables = {"account": account, "from": result.start, "to": result.end, "host": HOST}
     try:

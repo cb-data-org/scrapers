@@ -22,6 +22,8 @@ cb = "cb_scrapers.cli:main"
 [project.optional-dependencies]
 monitor = [
     "cryptography>=48",
+    # The weekly search report reads the CEO's targets (docs/targets.yaml).
+    "pyyaml>=6",
 ]
 
 [build-system]

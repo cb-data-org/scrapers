@@ -135,7 +135,7 @@ COLUMNS = {
         (
             "schedules",
             'Quando o preço vale, no horário da cidade: "Fri 17:00-20:00; Sat 22:00-02:00"; vazio quer '
-            "dizer sempre que o bar está aberto (num happy_hour ou promo: dias e horários ainda a "
+            "dizer sempre que o lugar está aberto (num happy_hour ou promo: dias e horários ainda a "
             "confirmar)",
         ),
         (
@@ -159,7 +159,7 @@ COLUMNS = {
         (
             "schedules",
             'When the price applies, in the city\'s time: "Fri 17:00-20:00; Sat 22:00-02:00"; empty '
-            "means whenever the bar is open (for a happy_hour or promo: days and hours not known yet)",
+            "means whenever the place is open (for a happy_hour or promo: days and hours not known yet)",
         ),
         ("service_charge_pct, couvert_brl", "Service charge and cover, on top of the menu price"),
         (
