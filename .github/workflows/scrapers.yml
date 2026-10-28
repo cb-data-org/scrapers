@@ -66,6 +66,13 @@ jobs:
         # Under the job's limit, so the cache is always saved: the queue, and the pace (instagram_bd saves after
         # each account).
         timeout-minutes: 45
+        env:
+          # A log of the run's own requests to Preço da Hora, and to no other host, one JSON line each (when, to
+          # what, the status, the headers that tell a limit, a block page's title; never a cookie, a value or a
+          # body), uploaded below. `uv run cb requests report` reads it, to learn what makes the site refuse us
+          # (apps/scrapers/src/cb_scrapers/request_report.py).
+          CB_REQUEST_LOG: ${{ runner.temp }}/requests.jsonl
+          CB_RUN_ID: ${{ github.run_id }}
         run: |
           if [ -z "$CB_API_URL" ] || [ -z "$CB_INGEST_TOKEN" ]; then
             echo "::notice::Set the variable CB_API_URL and the secret CB_INGEST_TOKEN to send items."
@@ -76,6 +83,14 @@ jobs:
           else
             uv run cb run precodahora --due
           fi
+      # A try that makes no request leaves no file, so no artifact.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: precodahora-requests-${{ github.run_id }}
+          path: ${{ runner.temp }}/requests.jsonl
+          retention-days: 90
+          if-no-files-found: ignore
       - uses: actions/cache/save@v4
         if: always()
         with:

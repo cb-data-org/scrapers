@@ -1297,3 +1297,40 @@ def test_salvador_shopping_is_a_focus_place_only(monkeypatch: pytest.MonkeyPatch
     # The founders campaign's second area (owner, 12 Oct 2026): searchable with CB_FOCUS, a 1 km circle.
     assert precodahora.PLACES["salvador-shopping"] == (-12.97975, -38.45985, 1)
     assert "salvador-shopping" not in precodahora.CITY
+
+
+def test_each_search_names_itself_in_the_request_log(
+    polite: Callable[..., PoliteClient], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The label is the task's key, so a refusal in the log says which search it was; nothing else changes.
+    log = tmp_path / "requests.jsonl"
+    monkeypatch.setenv("CB_REQUEST_LOG", str(log))
+    answers = iter(
+        [
+            httpx.Response(400),
+            httpx.Response(200, json={"resultado": []}),
+            httpx.Response(200, json={"resultado": []}),
+        ]
+    )
+    fake = site(answer=lambda request: next(answers))
+    adapter = PrecoDaHora(polite(fake), cnpjs=CnpjRegister(polite(FakeSite({})), None))
+    first = adapter.search_task("brahma", "grid-2/4", 1)
+    second = adapter.search_task("heineken", "pituba", 1, cheapest=True)
+    assert (first.key, second.key) == ("brahma @ grid-2/4 p1", "heineken @ pituba cheap")
+    adapter.fetch(first)  # the session has expired: the page is fetched again, still for this search
+    adapter.fetch(second)
+
+    text = log.read_text("utf-8")
+    found = [json.loads(line) for line in text.splitlines()]
+    assert [(line["method"], line["path"], line["status"], line["label"]) for line in found] == [
+        ("GET", "/robots.txt", 200, None),
+        ("GET", "/produtos/", 200, "brahma @ grid-2/4 p1"),
+        ("POST", "/produtos/", 400, "brahma @ grid-2/4 p1"),
+        ("GET", "/produtos/", 200, "brahma @ grid-2/4 p1"),
+        ("POST", "/produtos/", 200, "brahma @ grid-2/4 p1"),
+        ("POST", "/produtos/", 200, "heineken @ pituba cheap"),
+    ]
+    # The search form's field names are in the line; what was searched for (its circle) is not.
+    names = ["termo", "horas", "latitude", "longitude", "raio", "pagina", "ordenar"]
+    assert [line["params"] for line in found if line["method"] == "POST"] == [names] * 3
+    assert "-12.99928" not in text and "preco.asc" not in text

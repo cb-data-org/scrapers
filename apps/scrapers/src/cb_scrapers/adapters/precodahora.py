@@ -885,7 +885,7 @@ class PrecoDaHora(Adapter):
         self.searches += 1
         try:
             if self.csrf is None:
-                self.csrf = self.open_session()
+                self.csrf = self.open_session(task)
             try:
                 response = self.post(task)
             except httpx.HTTPStatusError as error:
@@ -893,7 +893,7 @@ class PrecoDaHora(Adapter):
                     raise
                 # An expired session: one fresh page and one more try, once a run.
                 self.refreshed = True
-                self.csrf = self.open_session()
+                self.csrf = self.open_session(task)
                 response = self.post(task)
         except DisallowedError as error:
             # robots.txt shuts us out, or answered 401/403/429, an error or nothing: a refusal like any other.
@@ -908,9 +908,10 @@ class PrecoDaHora(Adapter):
             raise BlockedError(task.key, f"expected JSON, got {got}")
         return Fetched(task, response.content, content_type)
 
-    def open_session(self) -> str:
-        """The page's session cookies and CSRF token; a CAPTCHA key on the page means the run stops."""
-        page = self.http.get(SEARCH_URL)
+    def open_session(self, task: Task | None = None) -> str:
+        """The page's session cookies and CSRF token; a CAPTCHA key on the page means the run stops. `task` is
+        the search that needs it: the request log names the page's fetch after that search."""
+        page = self.http.get(SEARCH_URL, label=task.key if task is not None else None)
         if re.search(r'id="rc"\s+data-id="[^"]+"', page.text):
             raise BlockedError(SEARCH_URL, "the page has a CAPTCHA switched on")
         token = re.search(r'id="validate"\s+data-id="([^"]+)"', page.text)
@@ -925,7 +926,7 @@ class PrecoDaHora(Adapter):
             "Referer": SEARCH_URL,
             "Origin": BASE,
         }
-        return self.http.post(SEARCH_URL, data=dict(task.params), headers=headers, retries=0)
+        return self.http.post(SEARCH_URL, data=dict(task.params), headers=headers, retries=0, label=task.key)
 
     # Parsing.
 

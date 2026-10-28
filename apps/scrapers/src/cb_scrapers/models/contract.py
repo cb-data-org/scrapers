@@ -1111,6 +1111,56 @@ class OwnerNote(BaseModel):
     """
 
 
+class SalesbotReading(BaseModel):
+    """
+    What the bot makes of a message, once settled: the reading its fixed replies are chosen from
+    """
+
+    intent: str
+    """
+    What the bar wants: one of the bot's intents (SALES_INTENTS in packages/api/src/salesbot-reading.ts)
+    """
+    faq: (
+        Literal[
+            "quem",
+            "robo",
+            "fonte",
+            "gratis",
+            "corrigir",
+            "remover",
+            "dados",
+            "ranking",
+            "selo",
+            "tempo",
+            "resultado",
+            "golpe",
+            "cardapio",
+        ]
+        | None
+    ) = None
+    """
+    The FAQ topic, when the intent is question
+    """
+    bar: str | None = None
+    """
+    The bar's name, when the model found one in the message
+    """
+
+
+class SalesbotReadingRequest(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    text: Annotated[str, Field(max_length=4096, min_length=1, pattern="\\S")]
+    """
+    The bar's message as typed (a voice note's transcript too); the model reads its first 1,500 characters
+    """
+    state: Annotated[str | None, Field(pattern="^[a-z][a-z_]{0,39}$")] = None
+    """
+    The conversation's step as a WhatsApp thread has it: null for nothing sent yet, asked_bar, raiox_sent, offer_sent… A "sim" counts as a reservation only in offer_sent
+    """
+
+
 class CsvImportIssue(BaseModel):
     line: Annotated[int, Field(gt=0)]
     column: str | None
@@ -2576,6 +2626,22 @@ class Deal(BaseModel):
 
 class OwnerInbox(BaseModel):
     notes: list[OwnerNote]
+
+
+class SalesbotReadingResult(BaseModel):
+    reading: SalesbotReading
+    source: Literal["rule", "model"]
+    """
+    What decided: the plain rules (no model was asked) or a model
+    """
+    model: str | None
+    """
+    The model whose answer was used; null when a rule decided
+    """
+    neurons: Annotated[float, Field(ge=0.0)]
+    """
+    Workers AI neurons this read cost, estimated as the bot counts them; 0 when a rule decided
+    """
 
 
 class CsvImportResult(BaseModel):

@@ -10,6 +10,11 @@
     uv run cb venues audit                 suggest keep/hide for venues on the map (#331; admin token)
     uv run cb venues apply [--apply]       do what data/seed/venue-review.csv says (dry run unless --apply)
     uv run cb run venue_classify           two LLM votes on what each venue is (bar, depósito, store…)
+    uv run cb requests report DIR [--json] the refusals and the pace of Preço da Hora, from request logs
+
+A run keeps a log of its own requests to Preço da Hora, and to no other host (one JSON line each, never a
+cookie, a value or a body), in the file named by CB_REQUEST_LOG; the Scrapers workflow uploads it, and
+`requests report` reads such files or folders.
 
 Sending needs CB_API_URL (site or staging origin) and CB_INGEST_TOKEN (an ingest-scoped admin token).
 A paced source (Preço da Hora: at most a run an hour, none for six hours after a refusal) keeps its pace on
@@ -76,6 +81,12 @@ def main(argv: list[str] | None = None) -> int:
         "action", choices=["audit", "apply"], help="audit: suggest; apply: do what the list says"
     )
     venues.add_argument("--apply", action="store_true", help="apply: change production (a dry run otherwise)")
+    requests = commands.add_parser("requests", help="what the request logs say about Preço da Hora")
+    requests.add_argument("action", choices=["report"], help="report: its refusals and pace, from the logs")
+    requests.add_argument(
+        "paths", nargs="+", type=Path, metavar="PATH", help="JSON-lines files, or folders of .jsonl files"
+    )
+    requests.add_argument("--json", action="store_true", help="print the figures as one JSON object")
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s", stream=sys.stderr)
 
@@ -110,6 +121,15 @@ def main(argv: list[str] | None = None) -> int:
         if args.report:
             write_report(args.report, results)
         print(summary(results))
+        return 0
+
+    if args.command == "requests":
+        from .request_report import ReportError, run_report
+
+        try:
+            print(run_report(args.paths, as_json=args.json))
+        except ReportError as error:
+            parser.error(str(error))
         return 0
 
     if args.command == "venues":
