@@ -687,7 +687,7 @@ class Token(BaseModel):
     """
     Who uses it, e.g. owner, scrapers, build
     """
-    scopes: Annotated[list[Literal["admin", "ingest", "build"]], Field(max_length=3, min_length=1)]
+    scopes: Annotated[list[Literal["admin", "ingest", "build", "reports"]], Field(max_length=4, min_length=1)]
     created_at: Annotated[int, Field(ge=0)]
     """
     Unix seconds (UTC)
@@ -721,7 +721,7 @@ class TokenCreate(BaseModel):
     """
     Who uses it, e.g. owner, scrapers, build
     """
-    scopes: Annotated[list[Literal["admin", "ingest", "build"]], Field(max_length=3, min_length=1)]
+    scopes: Annotated[list[Literal["admin", "ingest", "build", "reports"]], Field(max_length=4, min_length=1)]
     expires_in_days: Annotated[int | None, Field(ge=1, le=3650)] = None
 
 
@@ -1401,6 +1401,49 @@ class CityDemand(BaseModel):
     on_map: bool
     """
     Already one of the site's active cities
+    """
+
+
+class CoverageVenue(BaseModel):
+    id: Annotated[int, Field(gt=0)]
+    slug: Annotated[str, Field(max_length=80, pattern="^[a-z0-9]+(?:-[a-z0-9]+)*$")]
+    name: str
+    city: Annotated[str, Field(max_length=80, pattern="^[a-z0-9]+(?:-[a-z0-9]+)*$")]
+    """
+    The city's slug
+    """
+    neighbourhood: str | None
+    """
+    The bairro's name; null when the venue has none
+    """
+    kind: Literal["bar", "boteco", "pub", "barraca", "restaurante", "deposito", "cervejaria", "outro"]
+    on_site: bool
+    """
+    People can drink on site (a depósito only counts when true)
+    """
+    classification_source: Literal["owner", "classifier", "rule"]
+    """
+    Where the current kind and on_site come from. No column records it, so it is read from the audit log, by who last changed either: owner (a person: an admin token or a Telegram admin), classifier (the venue classifier in apply mode, actor ai:classifier) or rule (no change is recorded, so they are as the source's rules set them when the venue was created; or another automatic step changed them, such as the AI reviewer placing a held-back shop). A person's keep or hide (status), a verified bar and the classifier's mere suggestions (venue_classifications) don't count.
+    """
+    has_cnpj: bool
+    """
+    A CNPJ is on record; the number itself never leaves D1
+    """
+    has_overture: bool
+    """
+    It has an Overture Maps place id
+    """
+    has_osm: bool
+    """
+    It has an OpenStreetMap reference
+    """
+    price_count: Annotated[int, Field(ge=0)]
+    """
+    Prices the public API lists for it now (GET /api/v1/venues/{id}): published, not past valid_until, and checked within 180 calendar days in the city for a bar's price, 14 for a supermarket's or a depósito's
+    """
+    latest_verified_at: AwareDatetime | None
+    """
+    The most recent check among those prices (ISO 8601, UTC); null when it has none
     """
 
 
@@ -2759,6 +2802,14 @@ class MenuPhotoLogEntry(BaseModel):
 
 class CityDemandList(BaseModel):
     items: list[CityDemand]
+
+
+class CoverageVenuePage(BaseModel):
+    items: list[CoverageVenue]
+    next_cursor: str | None
+    """
+    Pass as `cursor` to get the next page; null on the last one
+    """
 
 
 class ClassifierVenue(BaseModel):

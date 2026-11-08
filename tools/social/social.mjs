@@ -42,6 +42,7 @@ function readSnapshot(dir) {
     sponsorships: read("v_public_sponsorships"),
     // Newer than some saved snapshots (the end-to-end fixture): none there.
     credits: existsSync(join(dir, "v_public_credits.json")) ? read("v_public_credits") : [],
+    barFacts: existsSync(join(dir, "v_public_bar_facts.json")) ? read("v_public_bar_facts") : [],
     // The dollar rate, when the snapshot fetched one (remote builds): English pages show US$ with it.
     ptax: existsSync(join(dir, "ptax.json")) ? readPtax(read("ptax")) : null,
     // The Friday Top 10s the live site has published (remote builds read them back): this build adds to them.
@@ -721,6 +722,10 @@ var WA_AUDIO_UNCLEAR = [
   "A gente n\xE3o conseguiu entender o \xE1udio.",
   "Podem escrever a mensagem?"
 ].join("\n");
+var WA_PLACEHOLDER = `A mensagem chegou. Uma pessoa responde aqui mesmo ${WA_REPLY_WITHIN}.`;
+var WA_PLACEHOLDER_FIRST = waWithFooter(
+  ["Oi! Aqui \xE9 o Cerveja Barata ({site}). Esta \xE9 uma resposta autom\xE1tica.", WA_PLACEHOLDER].join("\n")
+);
 var WA_MONEY_HOLD = [
   `Sobre valores e condi\xE7\xF5es, quem responde \xE9 uma pessoa, aqui mesmo, ${WA_REPLY_WITHIN}.`,
   "Nada \xE9 cobrado sem um sim de voc\xEAs."
@@ -861,6 +866,7 @@ ${LEAD_CONAR_LINE}`
   ].join("\n\n")
 };
 var IG_CAPTION_CTA = "Dono de bar? Comente RAIO-X ou chame no WhatsApp (link na bio) e veja o litro do seu bar ao lado da m\xE9dia do bairro.";
+var IG_CAPTION_CTA_LIVE = false;
 var IG_COMMENT_PRIVATE_REPLY = [
   "Oi! Aqui \xE9 o Cerveja Barata ({site}), respondendo ao coment\xE1rio de voc\xEAs.",
   "O Raio-X de voc\xEAs (o litro do bar ao lado da m\xE9dia do bairro) sai pelo WhatsApp. \xC9 s\xF3 enviar a mensagem pronta: {wa_link}",
@@ -910,10 +916,12 @@ var BRAND = {
    * The brand's WhatsApp number (digits, with 55), where bars ask for their Raio-X and the sales bot answers
    * (docs/sales-automation.md §4). Empty: the WhatsApp buttons stay hidden, until the owner publishes the number.
    */
-  whatsapp: "",
+  whatsapp: "5571999668268",
   /** The year the brand started (Organization.foundingDate). */
   founded: "2026",
   tagline: { "pt-BR": "o mapa da cerveja barata", en: "the cheap beer map" },
+  /** What the site does, after the name's comma in the header (#884; the copywriter's words of 28 Oct 2026). */
+  descriptor: { "pt-BR": "o mapa dos pre\xE7os por litro", en: "a map of beer prices per litre" },
   headline: { "pt-BR": "A cerveja mais barata perto de voc\xEA", en: "The cheapest beer near you" }
 };
 
@@ -1814,7 +1822,7 @@ function caption(post) {
       ...post.sextou ? [`O top 10 desta sexta e a mais barata de cada semana: ${post.sextou}`] : [],
       `Dados de ${post.updated}; os pre\xE7os podem mudar. Viu um pre\xE7o diferente? Avise pelo site.`,
       // Once the brand's WhatsApp is published, the copywriter's call to action: comment RAIO-X, or the bio's link.
-      BRAND.whatsapp ? IG_CAPTION_CTA : `\xC9 dono de bar? Mande o seu card\xE1pio: ${SITE}/para-bares`,
+      IG_CAPTION_CTA_LIVE ? IG_CAPTION_CTA : `\xC9 dono de bar? Mande o seu card\xE1pio: ${SITE}/para-bares`,
       CONAR,
       tags.join(" ")
     ].join("\n\n")

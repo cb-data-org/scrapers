@@ -10,8 +10,8 @@ lives elsewhere; issues and pull requests here aren't watched. Contact: contato@
 ## What runs here
 
 - **Preço da Hora Bahia** (SEFAZ-BA): beer sales from electronic receipts (NFC-e), searched by beer around the city,
-  in runs of at most 30 searches at least 20 seconds apart (about ten minutes), at most one run an hour, day and night
-  (720 searches a day at most). A run ends at the first sign the site doesn't want us (HTTP 403/429, a CAPTCHA, an
+  in runs of at most 12 searches at least 20 seconds apart (about four minutes), at most one run an hour, day and night
+  (288 searches a day at most). A run ends at the first sign the site doesn't want us (HTTP 403/429, a CAPTCHA, an
   unexpected answer, a robots.txt that shuts us out), and no run starts for the next six hours. The schedule tries
   three times an hour; `cb run` keeps the pace in the Actions cache, so a run started by hand keeps it too. It never
   works around a CAPTCHA.

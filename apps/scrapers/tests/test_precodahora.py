@@ -20,7 +20,7 @@ from cb_scrapers.adapters.precodahora import (
     tidy_name,
 )
 from cb_scrapers.cnpj import MINHA_RECEITA, CnpjRegister, Company
-from cb_scrapers.core import BlockedError, Fetched, Pace, PoliteClient, Task
+from cb_scrapers.core import BlockedError, Fetched, Pace, PoliteClient, Task, UnreachableError
 from cb_scrapers.core.catalog import committed_catalog
 from cb_scrapers.models import IngestRequest
 from cb_scrapers.venues import ReviewRow
@@ -750,7 +750,8 @@ def test_matches_against_an_older_overpass_answer_when_it_is_down(
     plan(("heineken",))
     run_tasks(offline(polite, site()))
     saved = cache / "precodahora-osm.json"
-    saved.write_text(saved.read_text().replace(date.today().isoformat(), "2026-10-01"))
+    older = (date.today() - timedelta(days=7)).isoformat()
+    saved.write_text(saved.read_text().replace(date.today().isoformat(), older))
     down = site()
     down.routes |= dict.fromkeys(OVERPASS, 503)
     adapter = offline(polite, down)
@@ -812,6 +813,19 @@ def test_a_robots_txt_that_shuts_us_out_is_a_refusal_too(
     assert fake.paths() == ["/robots.txt"]
 
 
+def test_an_unreachable_robots_txt_is_no_block_and_no_search(polite: Callable[..., PoliteClient]) -> None:
+    fake = site()
+
+    def offline(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("offline", request=request)
+
+    fake.routes[f"{precodahora.BASE}/robots.txt"] = offline
+    adapter = PrecoDaHora(polite(fake), cnpjs=CnpjRegister(polite(FakeSite({})), None))
+    with pytest.raises(UnreachableError):
+        adapter.fetch(Task("chopp @ pituba p1", SEARCH_URL, {"termo": "chopp", "pagina": 1}))
+    assert fake.paths() == ["/robots.txt"]
+
+
 def test_a_search_page_that_answers_an_error_ends_the_run_after_the_clients_retries(
     polite: Callable[..., PoliteClient],
 ) -> None:
@@ -826,7 +840,7 @@ def test_a_search_page_that_answers_an_error_ends_the_run_after_the_clients_retr
 def test_one_run_an_hour_at_most_and_six_hours_of_rest_after_a_refusal() -> None:
     # The pace the letter to SEFAZ-BA states (#701); `cb run` holds every run to it (test_cli, test_pace).
     assert PrecoDaHora.pace == Pace(timedelta(hours=1), timedelta(hours=6))
-    assert precodahora.MAX_SEARCHES * (timedelta(days=1) // PrecoDaHora.pace.every) == 720
+    assert precodahora.MAX_SEARCHES * (timedelta(days=1) // PrecoDaHora.pace.every) == 288
     assert PrecoDaHora.delay == precodahora.SEARCH_DELAY == 20
 
 
@@ -1168,8 +1182,9 @@ def test_the_barcodes_searched_cover_every_product_before_a_second_code(tmp_path
 
 
 def test_barcode_searches_start_city_wide_and_read_every_page(
-    polite: Callable[..., PoliteClient], plan: Callable[..., None]
+    polite: Callable[..., PoliteClient], monkeypatch: pytest.MonkeyPatch, plan: Callable[..., None]
 ) -> None:
+    monkeypatch.setattr(precodahora, "MAX_SEARCHES", 30)
     plan(())
     precodahora.PLACES.update(precodahora.WIDE)
     precodahora.PLACES.update(precodahora.QUARTERS)

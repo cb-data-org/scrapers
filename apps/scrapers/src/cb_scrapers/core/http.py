@@ -80,6 +80,10 @@ class DisallowedError(Exception):
     """robots.txt doesn't allow this URL for our user agent (or couldn't be read)."""
 
 
+class UnreachableError(DisallowedError):
+    pass
+
+
 def _origin(url: str) -> str:
     parts = urlsplit(url)
     return f"{parts.scheme}://{parts.netloc}"
@@ -407,11 +411,15 @@ class PoliteClient:
 
     def _rules(self, origin: str) -> RobotFileParser | None:
         if origin not in self._robots:
-            self._robots[origin] = self._read_robots(origin)
+            try:
+                self._robots[origin] = self._read_robots(origin)
+            except UnreachableError:
+                self._robots[origin] = None
+                raise
         return self._robots[origin]
 
     def _read_robots(self, origin: str) -> RobotFileParser | None:
-        """None means "don't crawl this host in this run" (robots.txt unreachable or rate-limited)."""
+        """None means "don't crawl this host in this run" (robots.txt rate-limited or erroring)."""
         rules = RobotFileParser(f"{origin}/robots.txt")
         self._space(origin, self.delay)
         try:
@@ -419,7 +427,7 @@ class PoliteClient:
                 response = self._client.get(f"{origin}/robots.txt")
         except httpx.TransportError as error:
             log.warning("robots.txt unreachable for %s: %s", origin, error)
-            return None
+            raise UnreachableError(origin) from error
         status = response.status_code
         if status in (401, 403):
             rules.disallow_all = True

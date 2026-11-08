@@ -19,6 +19,7 @@ from cb_scrapers.core import (
     Item,
     PoliteClient,
     Task,
+    UnreachableError,
 )
 from cb_scrapers.core.ingest import DryRunSink, IngestClient
 from cb_scrapers.core.runner import RunReport, due_adapters, run_adapter
@@ -184,6 +185,19 @@ def test_a_block_stops_the_source_but_keeps_what_was_found(polite: Polite) -> No
     assert report.status == "blocked"
     assert "/c.json" not in site.paths()
     assert sink.batches == [["menu:1"]]
+
+
+def test_an_unreachable_robots_txt_fails_the_source_and_is_no_block(polite: Polite) -> None:
+    class Unreachable(Menus):
+        def fetch(self, task: Task) -> Fetched:
+            raise UnreachableError("https://bar.test")
+
+    site = bar(a=deals(1), b=deals(2))
+    sink = RecordingSink()
+    report = run(site, polite, sink, Unreachable)
+    assert report.status == "failed"
+    assert report.errors == ["a: https://bar.test"]
+    assert sink.batches == []
 
 
 def test_nothing_fetched_is_a_failure(polite: Polite) -> None:

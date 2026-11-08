@@ -3,7 +3,7 @@ from collections.abc import Callable
 import httpx
 import pytest
 
-from cb_scrapers.core import USER_AGENT, BlockedError, DisallowedError, PoliteClient
+from cb_scrapers.core import USER_AGENT, BlockedError, DisallowedError, PoliteClient, UnreachableError
 from tests.fakes import FakeClock, FakeSite
 
 Polite = Callable[..., PoliteClient]
@@ -44,6 +44,19 @@ def test_robots_txt_errors(polite: Polite, robots_status: int, allowed: bool) ->
     else:
         with pytest.raises(DisallowedError):
             client.get("https://bar.test/menu")
+
+
+def test_a_robots_txt_nobody_answers_is_unreachable_not_a_refusal(polite: Polite) -> None:
+    def offline(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("offline", request=request)
+
+    site = FakeSite({ROBOTS: offline, "https://bar.test/menu": "ok"})
+    client = polite(site)
+    with pytest.raises(UnreachableError):
+        client.get("https://bar.test/menu")
+    with pytest.raises(DisallowedError):
+        client.get("https://bar.test/menu")
+    assert site.paths().count("/robots.txt") == 1
 
 
 def test_official_apis_can_skip_robots(polite: Polite) -> None:

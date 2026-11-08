@@ -1,7 +1,7 @@
 name: Scrapers
 
 # Preço da Hora at most once an hour (owner, 15 Oct 2026, #701: the pace the letter to SEFAZ-BA states): a run is at
-# most 30 searches, 20 s apart (about ten minutes), and `cb run` starts one only an hour after the last one started
+# most 12 searches, 20 s apart (about four minutes), and `cb run` starts one only an hour after the last one started
 # and never within six hours of a refusal (403/429, a CAPTCHA, an unexpected answer, robots.txt). It keeps both times
 # in the cache below (apps/scrapers/src/cb_scrapers/core/pace.py), so every run keeps that pace: scheduled or by hand.
 # GitHub drops many scheduled runs under load (two of thirteen hourly ones ran on 10-11 Oct 2026, none for seven hours

@@ -9,7 +9,7 @@ from typing import Any, Literal, Protocol
 from ..models import Catalog
 from .adapter import Adapter, Item
 from .catalog import load_catalog
-from .http import BlockedError, PoliteClient
+from .http import BlockedError, PoliteClient, UnreachableError
 
 log = logging.getLogger(__name__)
 
@@ -114,6 +114,11 @@ def run_adapter(
                     report.status = "blocked"
                     report.add_error(f"{task.key}: {error}")
                     log.warning("%s: blocked (%s); stopping this source for the run", name, error)
+                    break
+                except UnreachableError as error:
+                    report.status = "failed"
+                    report.add_error(f"{task.key}: {error}")
+                    log.warning("%s: %s; the next run tries again", name, error)
                     break
                 except Exception as error:
                     report.add_error(f"{task.key}: {type(error).__name__}: {error}")

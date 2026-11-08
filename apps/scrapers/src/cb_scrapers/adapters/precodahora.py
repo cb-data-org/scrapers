@@ -58,6 +58,7 @@ from ..core import (
     Pace,
     PoliteClient,
     Task,
+    UnreachableError,
     normalize,
     register,
 )
@@ -92,7 +93,7 @@ SEARCH_URL = f"{BASE}/produtos/"
 #: Seconds between two searches. The site answered 429 once searches came 7 a minute, so at most 3 a minute.
 SEARCH_DELAY = 20.0
 #: Searches a run, under the 33rd search that the site once refused.
-MAX_SEARCHES = 30
+MAX_SEARCHES = 12
 #: A run starts at least this long after the last one started (owner, 15 Oct 2026, #701: the pace the letter
 #: to SEFAZ-BA states): 30 searches an hour, 720 a day at most. The workflow tries three times an hour, as
 #: GitHub drops scheduled runs; `cb run` lets through the first try an hour after the last start.
@@ -895,8 +896,10 @@ class PrecoDaHora(Adapter):
                 self.refreshed = True
                 self.csrf = self.open_session(task)
                 response = self.post(task)
+        except UnreachableError:
+            raise
         except DisallowedError as error:
-            # robots.txt shuts us out, or answered 401/403/429, an error or nothing: a refusal like any other.
+            # robots.txt shuts us out, or answered 401/403/429 or an error: a refusal like any other.
             raise BlockedError(str(error) or SEARCH_URL, "robots.txt doesn't let us in") from error
         except httpx.HTTPStatusError as error:
             # Any other error answer (a 4xx past the one renewal, a 5xx past the client's retries) is
